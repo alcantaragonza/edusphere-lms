@@ -1,36 +1,36 @@
 services:
   postgres:
     image: postgres:15
-    container_name: edusphere_postgres
+    container_name: ${POSTGRES_CONTAINER_NAME}
     restart: unless-stopped
     environment:
-      POSTGRES_USER: edusphere
-      POSTGRES_PASSWORD: edusphere_pass
-      POSTGRES_DB: edusphere_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      - "5436:5432"
+      - "${POSTGRES_PORT}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}" ]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   mongo:
     image: mongo:6
-    container_name: edusphere_mongo
+    container_name: ${MONGO_CONTAINER_NAME}
     restart: unless-stopped
     environment:
-      MONGO_INITDB_ROOT_USERNAME: edusphere
-      MONGO_INITDB_ROOT_PASSWORD: edusphere_pass
-      MONGO_INITDB_DATABASE: edusphere_db
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
     volumes:
       - mongodata:/data/db
     ports:
-      - "27018:27017"
+      - "${MONGO_PORT}:27017"
     healthcheck:
-      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')" ]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
