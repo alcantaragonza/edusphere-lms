@@ -140,7 +140,6 @@ CREATE TABLE cursos (
     duracion_total_min    INTEGER        NOT NULL DEFAULT 0,
     total_modulos         SMALLINT       DEFAULT 0,
     total_lecciones       SMALLINT       DEFAULT 0,
-    total_recursos        SMALLINT       DEFAULT 0,
     calificacion_promedio NUMERIC(3,2)   DEFAULT 0.00,
     total_resenas         INTEGER        DEFAULT 0,
     total_estudiantes     INTEGER        DEFAULT 0,
@@ -280,35 +279,6 @@ CREATE TABLE certificados (
         CHECK (fecha_vencimiento IS NULL OR fecha_vencimiento > fecha_emision)
 );
 
-CREATE TABLE resenas (
-    id                  UUID          NOT NULL DEFAULT gen_random_uuid(),
-    inscripcion_id      UUID          NOT NULL,
-    calif_contenido     SMALLINT      NOT NULL,
-    calif_claridad      SMALLINT      NOT NULL,
-    calif_dificultad    SMALLINT      NOT NULL,
-    calif_valor         SMALLINT      NOT NULL,
-    calif_instructor    SMALLINT      NOT NULL,
-    calificacion_promedio NUMERIC(3,2),
-    comentario          TEXT,
-    titulo_resena       VARCHAR(200),
-    fecha_resena        TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    editada             BOOLEAN       NOT NULL DEFAULT FALSE,
-    fecha_edicion       TIMESTAMPTZ,
-    aprobada            BOOLEAN       NOT NULL DEFAULT TRUE,
-    util_count          INTEGER       DEFAULT 0,
-    reportada           BOOLEAN       NOT NULL DEFAULT FALSE,
-    PRIMARY KEY (id),
-    UNIQUE (inscripcion_id),
-    CONSTRAINT fk_resenas_inscripcion
-        FOREIGN KEY (inscripcion_id) REFERENCES inscripciones(id),
-    CONSTRAINT chk_resenas_contenido    CHECK (calif_contenido  BETWEEN 1 AND 5),
-    CONSTRAINT chk_resenas_claridad     CHECK (calif_claridad   BETWEEN 1 AND 5),
-    CONSTRAINT chk_resenas_dificultad   CHECK (calif_dificultad BETWEEN 1 AND 5),
-    CONSTRAINT chk_resenas_valor        CHECK (calif_valor      BETWEEN 1 AND 5),
-    CONSTRAINT chk_resenas_instructor   CHECK (calif_instructor BETWEEN 1 AND 5),
-    CONSTRAINT chk_resenas_promedio     CHECK (calificacion_promedio IS NULL OR calificacion_promedio BETWEEN 1 AND 5)
-);
-
 CREATE TABLE liquidaciones_instructor (
     id                   UUID                 NOT NULL DEFAULT gen_random_uuid(),
     instructor_id        UUID                 NOT NULL,
@@ -361,155 +331,11 @@ CREATE TABLE liquidaciones_detalle (
         CHECK (monto_bruto >= 0 AND monto_comision >= 0 AND monto_neto >= 0)
 );
 
-CREATE TABLE cupones (
-    id                  UUID          NOT NULL DEFAULT gen_random_uuid(),
-    codigo              VARCHAR(50)   NOT NULL,
-    descripcion         TEXT,
-    tipo_descuento      VARCHAR(20)   NOT NULL,
-    valor_descuento     NUMERIC(10,2) NOT NULL,
-    moneda              CHAR(3)       DEFAULT 'USD',
-    curso_id            UUID,
-    categoria_id        SMALLINT,
-    uso_max_total       INTEGER,
-    uso_max_por_usuario INTEGER       DEFAULT 1,
-    usos_actuales       INTEGER       DEFAULT 0,
-    fecha_inicio        TIMESTAMPTZ   NOT NULL,
-    fecha_fin           TIMESTAMPTZ   NOT NULL,
-    activo              BOOLEAN       NOT NULL DEFAULT TRUE,
-    created_by          UUID          NOT NULL,
-    created_at          TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (id),
-    UNIQUE (codigo),
-    CONSTRAINT fk_cupon_curso
-        FOREIGN KEY (curso_id) REFERENCES cursos(id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_cupon_categoria
-        FOREIGN KEY (categoria_id) REFERENCES categorias(id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_cupon_created_by
-        FOREIGN KEY (created_by) REFERENCES usuarios(id),
-    CONSTRAINT chk_cupon_tipo
-        CHECK (tipo_descuento IN ('porcentaje', 'monto_fijo')),
-    CONSTRAINT chk_cupon_valor
-        CHECK (valor_descuento > 0),
-    CONSTRAINT chk_cupon_fechas
-        CHECK (fecha_fin > fecha_inicio),
-    CONSTRAINT chk_cupon_uso_max
-        CHECK (uso_max_total IS NULL OR uso_max_total > 0)
-);
-
-CREATE TABLE cupones_uso (
-    id              UUID        NOT NULL DEFAULT gen_random_uuid(),
-    cupon_id        UUID        NOT NULL,
-    usuario_id      UUID        NOT NULL,
-    inscripcion_id  UUID        NOT NULL,
-    monto_descuento NUMERIC(10,2) NOT NULL,
-    fecha_uso       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (id),
-    CONSTRAINT fk_cupon_uso_cupon
-        FOREIGN KEY (cupon_id) REFERENCES cupones(id),
-    CONSTRAINT fk_cupon_uso_usuario
-        FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
-    CONSTRAINT fk_cupon_uso_inscripcion
-        FOREIGN KEY (inscripcion_id) REFERENCES inscripciones(id),
-    CONSTRAINT chk_cupon_uso_monto
-        CHECK (monto_descuento > 0)
-);
-
-CREATE TABLE recursos_descargables (
-    id              UUID          NOT NULL DEFAULT gen_random_uuid(),
-    leccion_id      UUID          NOT NULL,
-    titulo          VARCHAR(200)  NOT NULL,
-    descripcion     TEXT,
-    tipo_archivo    VARCHAR(50)   NOT NULL,
-    url_archivo     VARCHAR(500)  NOT NULL,
-    tamano_bytes    BIGINT,
-    orden           SMALLINT      DEFAULT 1,
-    created_at      TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (id),
-    CONSTRAINT fk_recursos_leccion
-        FOREIGN KEY (leccion_id) REFERENCES lecciones(id)
-        ON DELETE CASCADE,
-    CONSTRAINT chk_recurso_tamano
-        CHECK (tamano_bytes IS NULL OR tamano_bytes > 0)
-);
-
-CREATE TABLE foros_cursos (
-    id              UUID          NOT NULL DEFAULT gen_random_uuid(),
-    curso_id        UUID          NOT NULL,
-    usuario_id      UUID          NOT NULL,
-    titulo          VARCHAR(300)  NOT NULL,
-    contenido       TEXT          NOT NULL,
-    es_pregunta     BOOLEAN       NOT NULL DEFAULT TRUE,
-    resuelto        BOOLEAN       NOT NULL DEFAULT FALSE,
-    fijado          BOOLEAN       NOT NULL DEFAULT FALSE,
-    total_respuestas INTEGER      DEFAULT 0,
-    total_likes     INTEGER       DEFAULT 0,
-    created_at      TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (id),
-    CONSTRAINT fk_foro_curso
-        FOREIGN KEY (curso_id) REFERENCES cursos(id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_foro_usuario
-        FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
-);
-
-CREATE TABLE foros_respuestas (
-    id              UUID          NOT NULL DEFAULT gen_random_uuid(),
-    foro_id         UUID          NOT NULL,
-    usuario_id      UUID          NOT NULL,
-    contenido       TEXT          NOT NULL,
-    es_solucion     BOOLEAN       NOT NULL DEFAULT FALSE,
-    total_likes     INTEGER       DEFAULT 0,
-    created_at      TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (id),
-    CONSTRAINT fk_respuesta_foro
-        FOREIGN KEY (foro_id) REFERENCES foros_cursos(id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_respuesta_usuario
-        FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
-);
-
-CREATE TABLE notificaciones (
-    id              UUID          NOT NULL DEFAULT gen_random_uuid(),
-    usuario_id      UUID          NOT NULL,
-    tipo            VARCHAR(50)   NOT NULL,
-    titulo          VARCHAR(200)  NOT NULL,
-    mensaje         TEXT          NOT NULL,
-    url_destino     VARCHAR(500),
-    leida           BOOLEAN       NOT NULL DEFAULT FALSE,
-    fecha_lectura   TIMESTAMPTZ,
-    datos_extra     JSONB,
-    created_at      TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (id),
-    CONSTRAINT fk_notif_usuario
-        FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
-        ON DELETE CASCADE
-);
-
-CREATE TABLE wishlist (
-    id              UUID          NOT NULL DEFAULT gen_random_uuid(),
-    estudiante_id   UUID          NOT NULL,
-    curso_id        UUID          NOT NULL,
-    created_at      TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (id),
-    UNIQUE (estudiante_id, curso_id),
-    CONSTRAINT fk_wishlist_estudiante
-        FOREIGN KEY (estudiante_id) REFERENCES estudiantes(id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_wishlist_curso
-        FOREIGN KEY (curso_id) REFERENCES cursos(id)
-        ON DELETE CASCADE
-);
-
 CREATE TABLE carrito_compras (
     id              UUID          NOT NULL DEFAULT gen_random_uuid(),
     estudiante_id   UUID          NOT NULL,
     curso_id        UUID          NOT NULL,
     precio_snapshot NUMERIC(10,2) NOT NULL,
-    cupon_aplicado  UUID,
     created_at      TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     PRIMARY KEY (id),
     UNIQUE (estudiante_id, curso_id),
@@ -518,10 +344,7 @@ CREATE TABLE carrito_compras (
         ON DELETE CASCADE,
     CONSTRAINT fk_carrito_curso
         FOREIGN KEY (curso_id) REFERENCES cursos(id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_carrito_cupon
-        FOREIGN KEY (cupon_aplicado) REFERENCES cupones(id)
-        ON DELETE SET NULL
+        ON DELETE CASCADE
 );
 
 CREATE TABLE tipos_operacion_auditoria (
@@ -566,23 +389,9 @@ CREATE INDEX idx_pagos_inscripcion ON pagos(inscripcion_id);
 CREATE INDEX idx_pagos_estado      ON pagos(estado);
 CREATE INDEX idx_pagos_fecha       ON pagos(fecha_pago DESC);
 CREATE INDEX idx_cert_codigo       ON certificados(codigo_verificacion);
-CREATE INDEX idx_resenas_curso     ON resenas(inscripcion_id);
-CREATE INDEX idx_resenas_aprobada  ON resenas(aprobada);
 CREATE INDEX idx_liq_instructor    ON liquidaciones_instructor(instructor_id);
 CREATE INDEX idx_liq_estado        ON liquidaciones_instructor(estado);
 CREATE INDEX idx_liq_periodo       ON liquidaciones_instructor(periodo_inicio, periodo_fin);
-CREATE INDEX idx_cupones_codigo    ON cupones(codigo);
-CREATE INDEX idx_cupones_activo    ON cupones(activo, fecha_inicio, fecha_fin);
-CREATE INDEX idx_cupones_curso     ON cupones(curso_id);
-CREATE INDEX idx_cupon_uso_cupon   ON cupones_uso(cupon_id);
-CREATE INDEX idx_cupon_uso_usuario ON cupones_uso(usuario_id);
-CREATE INDEX idx_recursos_leccion  ON recursos_descargables(leccion_id);
-CREATE INDEX idx_foro_curso        ON foros_cursos(curso_id, created_at DESC);
-CREATE INDEX idx_foro_usuario      ON foros_cursos(usuario_id);
-CREATE INDEX idx_foro_resuelto     ON foros_cursos(resuelto);
-CREATE INDEX idx_respuesta_foro    ON foros_respuestas(foro_id, created_at);
-CREATE INDEX idx_notif_usuario     ON notificaciones(usuario_id, leida, created_at DESC);
-CREATE INDEX idx_wishlist_estudiante ON wishlist(estudiante_id);
 CREATE INDEX idx_carrito_estudiante  ON carrito_compras(estudiante_id);
 CREATE INDEX idx_log_usuario       ON log_auditoria(usuario_id);
 CREATE INDEX idx_log_operacion     ON log_auditoria(operacion_id);
