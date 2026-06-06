@@ -332,6 +332,69 @@ db.resenas.insertOne({
   reportada: false
 });
 
+db.createCollection("cuestionarios_respuestas", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["estudiante_id", "leccion_id", "preguntas_respuestas", "calificacion", "fecha_intento"],
+      properties: {
+        estudiante_id: { bsonType: "binData" },
+        leccion_id: { bsonType: "binData" },
+        preguntas_respuestas: {
+          bsonType: "array",
+          items: {
+            bsonType: "object",
+            required: ["pregunta_id", "respuesta", "correcta"],
+            properties: {
+              pregunta_id: { bsonType: "binData" },
+              respuesta: { bsonType: "string" },
+              correcta: { bsonType: "bool" }
+            }
+          }
+        },
+        calificacion: { bsonType: "number", minimum: 0, maximum: 100 },
+        puntaje_total: { bsonType: "int" },
+        tiempo_total_seg: { bsonType: "int", minimum: 0 },
+        fecha_intento: { bsonType: "date" },
+        intento_numero: { bsonType: "int", minimum: 1 }
+      }
+    }
+  },
+  validationLevel: "moderate",
+  validationAction: "warn"
+});
+
+db.cuestionarios_respuestas.createIndex(
+  { "estudiante_id": 1, "leccion_id": 1, "intento_numero": 1 },
+  { name: "idx_estudiante_leccion_intento" }
+);
+db.cuestionarios_respuestas.createIndex(
+  { "leccion_id": 1, "fecha_intento": -1 },
+  { name: "idx_leccion_fecha" }
+);
+
+db.cuestionarios_respuestas.insertOne({
+  estudiante_id: UUID("aaaa1111-bbbb-2222-cccc-3333dddd4444"),
+  leccion_id: UUID("b0000001-0000-0000-0000-000000000002"),
+  preguntas_respuestas: [
+    {
+      pregunta_id: UUID("c0000001-0000-0000-0000-000000000001"),
+      respuesta: "Un objeto que representa un valor futuro",
+      correcta: true
+    },
+    {
+      pregunta_id: UUID("c0000001-0000-0000-0000-000000000002"),
+      respuesta: "Una promesa",
+      correcta: true
+    }
+  ],
+  calificacion: 100,
+  puntaje_total: 2,
+  tiempo_total_seg: 180,
+  fecha_intento: ISODate("2026-05-11T09:10:00Z"),
+  intento_numero: 1
+});
+
 
 // ================================================================
 //  RESUMEN DE ÍNDICES

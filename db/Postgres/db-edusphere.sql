@@ -10,6 +10,7 @@ CREATE TYPE estado_inscripcion_e AS ENUM ('activo', 'completado', 'cancelado');
 CREATE TYPE estado_liquidacion_e AS ENUM ('pendiente', 'pagada', 'cancelada');
 CREATE TYPE metodo_pago_e        AS ENUM ('tarjeta','transferencia');
 CREATE TYPE estado_pago_e        AS ENUM ('pendiente', 'completado', 'fallido');
+CREATE TYPE tipo_pregunta_e     AS ENUM ('opcion_multiple', 'verdadero_falso', 'respuesta_abierta');
 
 
 create table usuarios (
@@ -273,6 +274,26 @@ create table log_auditoria (
         foreign key (usuario_id) references usuarios(id) on delete cascade,
     constraint fk_log_auditoria_tipo_operacion_id
         foreign key (tipo_operacion_id) references tipos_operacion_auditoria(id) on delete cascade
+);
+
+create table preguntas (
+    id UUID not null default gen_random_uuid() primary key,
+    leccion_id UUID not null,
+    texto text not null,
+    tipo tipo_pregunta_e not null,
+    opciones jsonb,
+    respuesta_correcta text not null,
+    puntos smallint not null default 1,
+    orden smallint not null,
+    fecha_creacion timestamptz not null default now(),
+    fecha_modificacion timestamptz not null default now(),
+    unique (leccion_id, orden),
+    constraint fk_preguntas_leccion
+        foreign key (leccion_id) references lecciones(id) on delete cascade,
+    constraint chk_preguntas_orden
+        check (orden > 0),
+    constraint chk_preguntas_puntos
+        check (puntos > 0)
 );
 
 
