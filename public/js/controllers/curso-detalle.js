@@ -361,7 +361,8 @@ async function openAddLessonModal(moduloId, slug) {
           <label class="form-label">Tipo</label>
           <select name="tipo" class="form-input">
             <option value="video">Video</option>
-            <option value="texto">Texto</option>
+            <option value="lectura">Lectura</option>
+            <option value="cuestionario">Cuestionario</option>
           </select>
         </div>
         <div class="form-group">
