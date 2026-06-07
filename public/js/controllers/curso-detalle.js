@@ -35,12 +35,16 @@ export async function cursoDetalleController(params) {
   if (cached) {
     cursoId = cached.id;
   } else {
-    try {
-      const bySlug = await getCourseById(slug);
-      if (bySlug && (bySlug.id || (bySlug.data && bySlug.data.id))) {
-        cursoId = bySlug.id || bySlug.data.id;
-      }
-    } catch (_) {
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
+    if (isUUID) {
+      try {
+        const byId = await getCourseById(slug);
+        if (byId && (byId.id || (byId.data && byId.data.id))) {
+          cursoId = byId.id || byId.data.id;
+        }
+      } catch (_) {}
+    }
+    if (!cursoId) {
       try {
         const res = await getCatalog();
         const all = Array.isArray(res) ? res : (res.data || res.cursos || []);
@@ -59,7 +63,9 @@ export async function cursoDetalleController(params) {
     const courseRes = await getCourseById(cursoId);
     const c = courseRes.data || courseRes;
     const modsData = await getCourseModules(cursoId);
-    const mods = Array.isArray(modsData) ? modsData : (modsData.data || []);
+    const allMods = Array.isArray(modsData) ? modsData : (modsData.data || []);
+    // Filtrar por curso_id (backend no soporta el filtro)
+    const mods = allMods.filter(m => m.curso_id === cursoId);
 
     const modulesWithLessons = await Promise.all(mods.map(async m => ({
       ...m,
@@ -346,6 +352,10 @@ async function openAddLessonModal(moduloId, slug) {
         <label class="form-label">Descripción</label>
         <textarea name="descripcion" class="form-input" rows="2" placeholder="Descripción breve" style="resize:vertical"></textarea>
       </div>
+      <div class="form-group">
+        <label class="form-label">Contenido (texto)</label>
+        <textarea name="contenido_texto" class="form-input" rows="5" placeholder="Escribe el contenido de la lección..." style="resize:vertical"></textarea>
+      </div>
       <div class="grid grid-3" style="gap:var(--space-4)">
         <div class="form-group">
           <label class="form-label">Tipo</label>
@@ -369,6 +379,7 @@ async function openAddLessonModal(moduloId, slug) {
   Modal({
     title: 'Agregar Lección',
     content: formHtml,
+    size: 'lg',
     footer: `
       <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
       <button class="btn btn-primary" id="btn-submit-leccion">Crear Lección</button>
@@ -388,7 +399,7 @@ async function openAddLessonModal(moduloId, slug) {
         titulo: data.titulo,
         descripcion: data.descripcion || '',
         contenido_url: '',
-        contenido_texto: null,
+        contenido_texto: data.contenido_texto || null,
         duracion_minutos: parseInt(data.duracion_minutos) || 10,
         orden: parseInt(data.orden) || 1,
         permite_descarga: false,
