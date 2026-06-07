@@ -18,13 +18,19 @@ create table usuarios (
     nombre varchar(200) not null,
     apellido varchar(200) not null,
     email varchar(255) not null unique,
+    password_hash varchar(255),
+    telefono varchar(20),
     fecha_nacimiento date,
     rol rol_usuario not null,
+    modificado_por uuid,
     fecha_registro timestamptz not null default now(),
     fecha_modificacion timestamptz not null default now(),
     constraint chk_usuarios_email
-        check (email ~* '^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$')
+        check (email ~* '^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$'),
+    constraint fk_usuarios_modificado_por
+        foreign key (modificado_por) references usuarios(id)
 );
+
 
 create table configuracion_plataforma (
     id smallserial not null primary key,
