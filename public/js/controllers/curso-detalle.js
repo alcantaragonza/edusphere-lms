@@ -245,14 +245,14 @@ function renderInstructorAccordion(modules, slug, esInstructor, cursoId) {
       <div class="lesson-module-body">
         <div class="lesson-list">
           ${lecciones.map(l => `
-            <div class="lesson-item">
-              <span class="lesson-item-icon material-symbols-rounded">${l.tipo === 'video' ? 'play_circle' : 'description'}</span>
+            <div class="lesson-item ${esInstructor ? 'clickable' : ''}" data-lesson-id="${l.id}" data-lesson-titulo="${l.titulo}" data-lesson-desc="${l.descripcion || ''}" data-lesson-contenido="${(l.contenido_texto || '').replace(/"/g, '&quot;')}" data-lesson-tipo="${l.tipo}" data-lesson-dur="${l.duracion_minutos || 0}">
+              <span class="lesson-item-icon material-symbols-rounded">${l.tipo === 'video' ? 'play_circle' : l.tipo === 'cuestionario' ? 'quiz' : 'description'}</span>
               <span>${l.titulo}</span>
               <span class="lesson-item-duration">${l.duracion_minutos || 0}m</span>
             </div>
           `).join('')}
           ${esInstructor ? `
-            <div class="lesson-item" style="color:var(--color-primary);cursor:pointer" data-add-lesson="${mod.id}">
+            <div class="lesson-item" style="color:var(--color-primary);cursor:pointer" data-add-lesson="${mod.id}" data-lesson-count="${total}">
               <span class="lesson-item-icon material-symbols-rounded">add_circle</span>
               <span>Agregar lección</span>
             </div>
@@ -273,9 +273,24 @@ function renderInstructorAccordion(modules, slug, esInstructor, cursoId) {
     if (addLessonBtn) {
       addLessonBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        openAddLessonModal(addLessonBtn.dataset.addLesson, slug);
+        const count = parseInt(addLessonBtn.dataset.lessonCount) || 0;
+        openAddLessonModal(addLessonBtn.dataset.addLesson, slug, count);
       });
     }
+
+    // Click en lección existente (instructor: editar, estudiante: ver)
+    moduleEl.querySelectorAll('.lesson-item.clickable').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = item.dataset.lessonId;
+        const titulo = item.dataset.lessonTitulo;
+        const desc = item.dataset.lessonDesc;
+        const contenido = item.dataset.lessonContenido;
+        const tipo = item.dataset.lessonTipo;
+        const dur = parseInt(item.dataset.lessonDur) || 0;
+        openEditLessonModal(id, titulo, desc, contenido, tipo, dur, slug);
+      });
+    });
 
     container.appendChild(moduleEl);
   });
@@ -284,6 +299,14 @@ function renderInstructorAccordion(modules, slug, esInstructor, cursoId) {
 }
 
 async function openAddModuloModal(cursoId, slug) {
+  // Auto-calcular orden basado en módulos existentes
+  let nextOrden = 1;
+  try {
+    const modsData = await api.get(`/modulos?curso_id=${cursoId}`);
+    const all = Array.isArray(modsData) ? modsData : (modsData.data || []);
+    nextOrden = all.length + 1;
+  } catch (_) {}
+
   const formHtml = `
     <form id="form-add-modulo" style="display:flex;flex-direction:column;gap:var(--space-4)">
       <div class="form-group">
@@ -294,15 +317,9 @@ async function openAddModuloModal(cursoId, slug) {
         <label class="form-label">Descripción</label>
         <textarea name="descripcion" class="form-input" rows="2" placeholder="Descripción del módulo" style="resize:vertical"></textarea>
       </div>
-      <div class="grid grid-2" style="gap:var(--space-4)">
-        <div class="form-group">
-          <label class="form-label">Orden</label>
-          <input type="number" name="orden" class="form-input" value="1" min="1">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Duración (min)</label>
-          <input type="number" name="duracion_total_min" class="form-input" value="0" min="0">
-        </div>
+      <div class="form-group">
+        <label class="form-label">Duración (min)</label>
+        <input type="number" name="duracion_total_min" class="form-input" value="0" min="0">
       </div>
     </form>
   `;
@@ -327,7 +344,6 @@ async function openAddModuloModal(cursoId, slug) {
         curso_id: cursoId,
         titulo: data.titulo,
         descripcion: data.descripcion || '',
-        orden: parseInt(data.orden) || 1,
         duracion_total_min: parseInt(data.duracion_total_min) || 0,
         es_gratuito: false,
       });
@@ -341,7 +357,7 @@ async function openAddModuloModal(cursoId, slug) {
   });
 }
 
-async function openAddLessonModal(moduloId, slug) {
+async function openAddLessonModal(moduloId, slug, nextOrden = 1) {
   const formHtml = `
     <form id="form-add-leccion" style="display:flex;flex-direction:column;gap:var(--space-4)">
       <div class="form-group">
@@ -353,10 +369,10 @@ async function openAddLessonModal(moduloId, slug) {
         <textarea name="descripcion" class="form-input" rows="2" placeholder="Descripción breve" style="resize:vertical"></textarea>
       </div>
       <div class="form-group">
-        <label class="form-label">Contenido (texto)</label>
-        <textarea name="contenido_texto" class="form-input" rows="5" placeholder="Escribe el contenido de la lección..." style="resize:vertical"></textarea>
+        <label class="form-label">Contenido</label>
+        <textarea name="contenido_texto" class="form-input" rows="6" placeholder="Escribe el contenido de la lección..." style="resize:vertical"></textarea>
       </div>
-      <div class="grid grid-3" style="gap:var(--space-4)">
+      <div class="grid grid-2" style="gap:var(--space-4)">
         <div class="form-group">
           <label class="form-label">Tipo</label>
           <select name="tipo" class="form-input">
@@ -368,10 +384,6 @@ async function openAddLessonModal(moduloId, slug) {
         <div class="form-group">
           <label class="form-label">Duración (min)</label>
           <input type="number" name="duracion_minutos" class="form-input" value="10" min="1">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Orden</label>
-          <input type="number" name="orden" class="form-input" value="1" min="1">
         </div>
       </div>
     </form>
@@ -402,11 +414,81 @@ async function openAddLessonModal(moduloId, slug) {
         contenido_url: '',
         contenido_texto: data.contenido_texto || null,
         duracion_minutos: parseInt(data.duracion_minutos) || 10,
-        orden: parseInt(data.orden) || 1,
+        orden: nextOrden,
         permite_descarga: false,
       });
       document.querySelector('.modal-overlay').remove();
       showToast({ type: 'success', title: 'Lección creada' });
+      window.location.hash = `#/curso/${slug}`;
+      cursoDetalleController({ slug });
+    } catch (err) {
+      showToast({ type: 'error', title: 'Error', message: err.data?.error || err.message });
+    }
+  });
+}
+
+async function openEditLessonModal(id, titulo, desc, contenido, tipo, dur, slug) {
+  const escapedTitulo = titulo.replace(/"/g, '&quot;');
+  const escapedDesc = (desc || '').replace(/"/g, '&quot;');
+  const escapedCont = (contenido || '').replace(/"/g, '&quot;');
+
+  const formHtml = `
+    <form id="form-edit-leccion" style="display:flex;flex-direction:column;gap:var(--space-4)">
+      <div class="form-group">
+        <label class="form-label">Título</label>
+        <input type="text" name="titulo" class="form-input" value="${escapedTitulo}" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descripción</label>
+        <textarea name="descripcion" class="form-input" rows="2" style="resize:vertical">${escapedDesc}</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contenido</label>
+        <textarea name="contenido_texto" class="form-input" rows="8" style="resize:vertical">${escapedCont}</textarea>
+      </div>
+      <div class="grid grid-2" style="gap:var(--space-4)">
+        <div class="form-group">
+          <label class="form-label">Tipo</label>
+          <select name="tipo" class="form-input">
+            <option value="video" ${tipo === 'video' ? 'selected' : ''}>Video</option>
+            <option value="lectura" ${tipo === 'lectura' ? 'selected' : ''}>Lectura</option>
+            <option value="cuestionario" ${tipo === 'cuestionario' ? 'selected' : ''}>Cuestionario</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Duración (min)</label>
+          <input type="number" name="duracion_minutos" class="form-input" value="${dur}" min="1">
+        </div>
+      </div>
+    </form>
+  `;
+
+  Modal({
+    title: titulo,
+    content: formHtml,
+    size: 'lg',
+    footer: `
+      <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-leccion">Guardar Cambios</button>
+    `,
+  });
+
+  document.querySelector('#btn-save-leccion').addEventListener('click', async () => {
+    const form = document.querySelector('#form-edit-leccion');
+    if (!form.reportValidity()) return;
+    const fd = new FormData(form);
+    const data = Object.fromEntries(fd.entries());
+
+    try {
+      await api.patch(`/lecciones/${id}`, {
+        titulo: data.titulo,
+        descripcion: data.descripcion || '',
+        contenido_texto: data.contenido_texto || null,
+        tipo: data.tipo,
+        duracion_minutos: parseInt(data.duracion_minutos) || dur,
+      });
+      document.querySelector('.modal-overlay').remove();
+      showToast({ type: 'success', title: 'Lección actualizada' });
       window.location.hash = `#/curso/${slug}`;
       cursoDetalleController({ slug });
     } catch (err) {
