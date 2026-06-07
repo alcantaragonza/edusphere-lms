@@ -140,10 +140,12 @@ export function authController() {
       const apellido = registerForm.querySelector('[name="apellido"]').value;
       const email = registerForm.querySelector('[name="email"]').value;
       const password = registerForm.querySelector('[name="password"]').value;
+      const telefono = registerForm.querySelector('[name="telefono"]').value;
+      const fecha_nacimiento = registerForm.querySelector('[name="fecha_nacimiento"]').value;
       const rol = registerForm.querySelector('[name="rol"]').value;
 
       try {
-        const res = await register({ nombre, apellido, email, password, rol });
+        const res = await register({ nombre, apellido, email, password, telefono, fecha_nacimiento, rol });
         state.user = res.usuario || res.user;
         state.cartCount = 0;
         showToast({ type: 'success', title: '¡Cuenta creada!', message: `Bienvenido, ${state.user.nombre}` });
@@ -230,6 +232,16 @@ function renderRegisterForm() {
       <div class="form-group">
         <label class="form-label">Contraseña</label>
         <input type="password" name="password" class="form-input" placeholder="Mín. 8 caracteres" required minlength="8">
+      </div>
+      <div class="grid grid-2" style="gap:var(--space-4)">
+        <div class="form-group">
+          <label class="form-label">Teléfono</label>
+          <input type="tel" name="telefono" class="form-input" placeholder="+502 5555-0000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha de Nacimiento</label>
+          <input type="date" name="fecha_nacimiento" class="form-input">
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">Rol</label>

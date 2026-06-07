@@ -19,6 +19,8 @@ export async function register(data) {
     apellido: data.apellido || '',
     email: data.email,
     password: data.password,
+    telefono: data.telefono || null,
+    fecha_nacimiento: data.fecha_nacimiento || null,
     rol: data.rol || 'estudiante',
   });
   if (res.token) {
