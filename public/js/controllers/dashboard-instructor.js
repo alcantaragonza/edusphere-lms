@@ -29,49 +29,39 @@ export async function dashboardInstructorController() {
 
   main.appendChild(LoadingSpinner({ text: 'Cargando dashboard...' }));
 
-  // Asegurar que el instructor existe
   const userId = localStorage.getItem('edusphere_user_id');
+  const user = state.user;
   let instructorId = null;
   let earnings = {};
+  let perfilInstructor = null;
 
   try {
     const instructores = await api.get('/instructores');
     const list = Array.isArray(instructores) ? instructores : (instructores.data || []);
-    const inst = list.find(i => i.usuario_id === userId);
-    if (inst) {
-      instructorId = inst.id;
-    } else {
-      // Crear perfil de instructor si no existe
+    perfilInstructor = list.find(i => i.usuario_id === userId);
+    if (perfilInstructor) {
+      instructorId = perfilInstructor.id;
       try {
-        const nuevo = await api.post('/instructores', {
-          usuario_id: userId,
-          biografia: '',
-          anos_experiencia: 0,
-          metodo_pago: 'transferencia',
-          referencia_pago: '',
-        });
-        instructorId = nuevo.id || (nuevo.data && nuevo.data.id);
-      } catch (_) {
-        instructorId = userId; // fallback
-      }
+        const ingData = await api.get(`/instructores/${instructorId}/ingresos`);
+        earnings = ingData.data || ingData || {};
+      } catch (_) {}
     }
+  } catch (_) {}
 
+  let cursos = [];
+  if (instructorId) {
     try {
-      const ingData = await api.get(`/instructores/${instructorId}/ingresos`);
-      earnings = ingData.data || ingData || {};
+      const cursosData = await api.get(`/cursos?instructor_id=${instructorId}`);
+      cursos = Array.isArray(cursosData) ? cursosData : (cursosData.data || cursosData.cursos || []);
     } catch (_) {}
-  } catch (_) {
-    instructorId = userId;
   }
-
-  const cursosData = await api.get(`/cursos?instructor_id=${instructorId}`);
-  const cursos = Array.isArray(cursosData) ? cursosData : (cursosData.data || cursosData.cursos || []);
-  const user = state.user;
 
   const totalStudents = cursos.reduce((s, c) => s + (c.total_estudiantes || 0), 0);
   const avgRating = cursos.length > 0
     ? cursos.reduce((s, c) => s + (Number(c.calificacion_promedio) || 0), 0) / cursos.length
     : 0;
+
+  const puedeCrear = !!instructorId;
 
   main.innerHTML = `
     <div class="container" style="padding-block:var(--space-8)">
@@ -80,10 +70,17 @@ export async function dashboardInstructorController() {
           <h1 style="font-size:var(--fs-display-md);margin-bottom:var(--space-2)">¡Bienvenido, ${user?.nombre || 'Instructor'}!</h1>
           <p class="text-muted" style="font-size:var(--fs-body-lg)">Esto es lo que está pasando con tus cursos este mes.</p>
         </div>
-        <button class="btn btn-primary" id="btn-crear-curso">
+        <button class="btn btn-primary" id="btn-crear-curso" ${!puedeCrear ? 'disabled' : ''}>
           <span class="material-symbols-rounded">add_circle</span> Crear Nuevo Curso
         </button>
       </div>
+
+      ${!puedeCrear ? `
+        <div style="padding:var(--space-4);background:var(--color-warning-light);border-radius:var(--radius-lg);border:1px solid var(--color-warning);margin-bottom:var(--space-6);font-size:var(--fs-body-sm);color:var(--color-warning)">
+          <span class="material-symbols-rounded" style="vertical-align:middle;margin-right:var(--space-2)">info</span>
+          Tu perfil de instructor aún no ha sido configurado. Un administrador debe crearlo para que puedas publicar cursos.
+        </div>
+      ` : ''}
 
       <div class="grid grid-3" style="margin-bottom:var(--space-10)">
         <div class="card" style="padding:var(--space-6)">
@@ -106,7 +103,7 @@ export async function dashboardInstructorController() {
       <h2 style="font-size:var(--fs-headline-sm);margin-bottom:var(--space-6)">Mis Cursos</h2>
       <div id="instructor-courses">
         ${cursos.length === 0
-          ? EmptyState({ icon: 'menu_book', title: 'Aún no tienes cursos', description: 'Crea tu primer curso para empezar a enseñar.' }).outerHTML
+          ? EmptyState({ icon: 'menu_book', title: 'Aún no tienes cursos', description: puedeCrear ? 'Crea tu primer curso para empezar a enseñar.' : 'Necesitas que un admin configure tu perfil de instructor.' }).outerHTML
           : `
             <div style="display:flex;flex-direction:column;gap:var(--space-4)">
               ${cursos.map(c => `
@@ -120,7 +117,7 @@ export async function dashboardInstructorController() {
                         <h4 style="font-size:var(--fs-body-md)">${c.titulo}</h4>
                         <span class="tag ${c.estado === 'publicado' ? 'tag-success' : c.estado === 'borrador' ? 'tag-secondary' : ''}">${c.estado === 'publicado' ? 'Publicado' : c.estado === 'borrador' ? 'Borrador' : c.estado || '—'}</span>
                       </div>
-                      <p class="text-muted" style="font-size:var(--fs-body-sm)">${c.categoria_nombre || c.categoria || ''} · ${formatNumber(c.total_estudiantes || 0)} Inscritos</p>
+                      <p class="text-muted" style="font-size:var(--fs-body-sm)">${formatNumber(c.total_estudiantes || 0)} Inscritos</p>
                     </div>
                     <a href="#/curso/${c.slug}" class="btn btn-ghost btn-sm">Gestionar</a>
                   </div>
@@ -131,6 +128,7 @@ export async function dashboardInstructorController() {
         }
       </div>
 
+      ${puedeCrear ? `
       <div class="card" style="padding:var(--space-6);margin-top:var(--space-8)">
         <h3 style="font-size:var(--fs-body-md);margin-bottom:var(--space-4)">Resumen Financiero</h3>
         <div class="flex items-center justify-between" style="margin-bottom:var(--space-2)">
@@ -148,20 +146,21 @@ export async function dashboardInstructorController() {
           </div>
         </div>
       </div>
+      ` : ''}
     </div>
   `;
 
-  // Botón crear curso
-  main.querySelector('#btn-crear-curso').addEventListener('click', () => openCreateCourseModal(instructorId));
+  if (puedeCrear) {
+    main.querySelector('#btn-crear-curso').addEventListener('click', () => openCreateCourseModal(instructorId));
+  }
 }
 
 async function openCreateCourseModal(instructorId) {
-  // Validar que instructorId sea numérico (smallint), no UUID
   if (!instructorId || isNaN(Number(instructorId))) {
-    showToast({ type: 'error', title: 'Perfil de instructor no configurado', message: 'Un administrador debe crear tu perfil de instructor primero.' });
+    showToast({ type: 'error', title: 'Perfil no configurado', message: 'Un administrador debe crear tu perfil de instructor.' });
     return;
   }
-  // Cargar categorías
+
   let categorias = [];
   try {
     const res = await api.get('/categorias');
@@ -184,7 +183,7 @@ async function openCreateCourseModal(instructorId) {
       </div>
       <div class="grid grid-2" style="gap:var(--space-4)">
         <div class="form-group">
-          <label class="form-label">Categoría</label>
+          <label class="form-label">Categoría *</label>
           <select name="categoria_id" class="form-input" required>
             <option value="">Selecciona una categoría</option>
             ${categorias.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('')}
@@ -239,28 +238,23 @@ async function openCreateCourseModal(instructorId) {
     `,
   });
 
-  // Auto-generar slug desde título
   const tituloInput = document.querySelector('#form-crear-curso [name="titulo"]');
   const slugInput = document.querySelector('#form-crear-curso [name="slug"]');
   tituloInput.addEventListener('input', () => {
-    if (!slugInput.dataset.manual) {
-      slugInput.value = slugify(tituloInput.value);
-    }
+    if (!slugInput.dataset.manual) slugInput.value = slugify(tituloInput.value);
   });
-  slugInput.addEventListener('input', () => {
-    slugInput.dataset.manual = slugInput.value ? 'true' : '';
-  });
+  slugInput.addEventListener('input', () => { slugInput.dataset.manual = 'true'; });
 
-  // Submit
   document.querySelector('#btn-submit-curso').addEventListener('click', async () => {
     const form = document.querySelector('#form-crear-curso');
+    if (!form.reportValidity()) return;
+
     const fd = new FormData(form);
     const data = Object.fromEntries(fd.entries());
 
-    // Construir body según Postman
     const body = {
-      instructor_id: instructorId,
-      categoria_id: parseInt(data.categoria_id) || 1,
+      instructor_id: parseInt(instructorId),
+      categoria_id: parseInt(data.categoria_id),
       estado: 'publicado',
       nivel: data.nivel || 'principiante',
       slug: data.slug || slugify(data.titulo),
@@ -271,7 +265,7 @@ async function openCreateCourseModal(instructorId) {
       precio: parseFloat(data.precio) || 0,
       precio_descuento: data.precio_descuento ? parseFloat(data.precio_descuento) : null,
       duracion_horas: parseFloat(data.duracion_horas) || 0,
-      permite_certificado: !!data.permite_certificado,
+      permite_certificado: data.permite_certificado === 'on',
       fecha_publicacion: new Date().toISOString(),
     };
 
@@ -279,7 +273,7 @@ async function openCreateCourseModal(instructorId) {
       await api.post('/cursos', body);
       document.querySelector('.modal-overlay').remove();
       showToast({ type: 'success', title: '¡Curso creado!', message: body.titulo });
-      dashboardInstructorController(); // refrescar
+      dashboardInstructorController();
     } catch (err) {
       showToast({ type: 'error', title: 'Error', message: err.data?.error || err.message });
     }
