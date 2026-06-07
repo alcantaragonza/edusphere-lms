@@ -51,8 +51,9 @@ export async function dashboardInstructorController() {
   let cursos = [];
   if (instructorId) {
     try {
-      const cursosData = await api.get(`/cursos?instructor_id=${instructorId}`);
-      cursos = Array.isArray(cursosData) ? cursosData : (cursosData.data || cursosData.cursos || []);
+      const cursosData = await api.get('/cursos');
+      const all = Array.isArray(cursosData) ? cursosData : (cursosData.data || cursosData.cursos || []);
+      cursos = all.filter(c => c.instructor_id === instructorId);
     } catch (_) {}
   }
 

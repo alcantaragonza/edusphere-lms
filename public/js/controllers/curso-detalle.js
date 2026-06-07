@@ -5,7 +5,7 @@
 import { state } from '../utils/state.js';
 import { createEl } from '../utils/dom.js';
 import { formatPrice, formatNumber } from '../utils/formatters.js';
-import { getCourseById, getCourseModules, getModuleLessons } from '../api/cursos.js';
+import { getCourseById, getCourseModules, getModuleLessons, getCatalog } from '../api/cursos.js';
 import { getReviews } from '../api/resenas.js';
 import { addToCart } from '../api/carrito.js';
 import { getCourseBySlug } from '../utils/course-cache.js';
@@ -28,17 +28,40 @@ export async function cursoDetalleController(params) {
 
   main.appendChild(LoadingSpinner({ text: 'Cargando curso...' }));
 
-  // Buscar ID desde caché
+  // Buscar ID desde caché o desde API por slug
+  let cursoId = null;
+  let cursoSlug = slug;
+
   const cached = getCourseBySlug(slug);
-  if (!cached) {
+  if (cached) {
+    cursoId = cached.id;
+  } else {
+    // Intentar buscar por slug en la API
+    try {
+      const bySlug = await getCourseById(slug); // fallback: intentar por ID directo
+      if (bySlug && (bySlug.id || (bySlug.data && bySlug.data.id))) {
+        cursoId = bySlug.id || bySlug.data.id;
+      }
+    } catch (_) {
+      // Intentar GET /cursos?slug=xxx
+      try {
+        const res = await getCatalog();
+        const all = Array.isArray(res) ? res : (res.data || res.cursos || []);
+        const found = all.find(c => c.slug === slug);
+        if (found) cursoId = found.id;
+      } catch (__) {}
+    }
+  }
+
+  if (!cursoId) {
     main.innerHTML = `<div class="container section text-center"><h2>Curso no encontrado</h2><a href="#/" class="btn btn-primary" style="margin-top:var(--space-6)">Explorar Cursos</a></div>`;
     return;
   }
 
   try {
-    const courseRes = await getCourseById(cached.id);
+    const courseRes = await getCourseById(cursoId);
     const c = courseRes.data || courseRes;
-    const modsData = await getCourseModules(cached.id);
+    const modsData = await getCourseModules(cursoId);
     const mods = Array.isArray(modsData) ? modsData : (modsData.data || []);
 
     // Fetch lessons for each module
