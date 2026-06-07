@@ -45,6 +45,8 @@ cp .env.example .env
 #      POSTGRES_DB=edusphere_db
 #      POSTGRES_PORT=5433          # puerto del host (mapea al 5432 del contenedor)
 #      PORT=3000                   # puerto donde escucha la API
+#      JWT_SECRET="<cadena-larga-aleatoria>"   # secreto para firmar los tokens
+#      JWT_EXPIRES=8h                          # duración del token
 #    Nota: db.js lee las variables POSTGRES_* (compartidas con docker-compose).
 
 # 3) Levantar PostgreSQL con Docker
@@ -52,12 +54,16 @@ cp .env.example .env
 #    Compose buscaría el .env dentro de infra/ (no en la raíz) y las variables saldrían vacías.
 docker compose --env-file .env -f infra/docker-compose.yml up -d postgres
 
-# 4) Cargar TU esquema SQL en la base (tablas, vistas, funciones y SP).
+# 4) Cargar el esquema SQL en la base (tablas, vistas, funciones y SP).
 #    Ajusta la ruta a tu archivo .sql (p. ej. el de la rama feature/db):
 docker exec -i edusphere_postgres \
   psql -U admin -d edusphere_db < db/Postgres/db-edusphere.sql
 
-# 5) Instalar dependencias (las ya declaradas; NO instala nada nuevo)
+# 4b) Soporte de autenticación: agrega la columna password_hash a usuarios.
+docker exec -i edusphere_postgres \
+  psql -U admin -d edusphere_db < docs/auth.sql
+
+# 5) Instalar dependencias
 pnpm install
 
 # 6) Levantar la API en modo desarrollo (recarga con nodemon)
@@ -85,6 +91,9 @@ curl http://localhost:3000/api/health
 | Método | Ruta | Descripción |
 |--------|------|-------------|
 | GET | `/api/health` | Healthcheck (`SELECT 1`) |
+| POST | `/api/auth/registro` | Crear usuario con contraseña hasheada → devuelve `{ usuario, token }` |
+| POST | `/api/auth/login` | Iniciar sesión → devuelve `{ usuario, token }` |
+| GET | `/api/auth/yo` | Datos del usuario del token (protegido) |
 | CRUD | `/api/usuarios` `/instructores` `/estudiantes` `/categorias` `/cursos` `/modulos` `/lecciones` | POST, GET lista, GET `/:id`, PATCH `/:id`, DELETE `/:id` |
 | POST | `/api/inscripciones` | OC-01 → `CALL sp_inscribir_estudiante` |
 | POST | `/api/certificados` | OC-02 → `CALL sp_emitir_certificado` |
@@ -96,15 +105,38 @@ curl http://localhost:3000/api/health
 | GET | `/api/reportes/top-cursos` | RC-06 → `mv_top_cursos_trimestre` |
 | GET | `/api/reportes/tasa-finalizacion` | RC-07 → `vw_tasa_finalizacion` |
 
-Códigos de error: **400** validación · **404** no encontrado · **409** conflicto (duplicado/FK) ·
-**501** objeto de BD aún no creado · **500** interno. Respuestas siempre en JSON `{ error, detalle }`.
+Códigos de error: **400** validación · **401** no autenticado / token inválido · **403** sin permiso (rol) ·
+**404** no encontrado · **409** conflicto (duplicado/FK) · **501** objeto de BD aún no creado ·
+**500** interno. Respuestas siempre en JSON `{ error, detalle }`.
+
+### 2b. Autenticación y roles (JWT)
+
+- Las contraseñas se guardan **hasheadas con bcrypt** (nunca en texto plano) en `usuarios.password_hash`.
+- `POST /api/auth/registro` y `/login` devuelven un **JWT**. Para las rutas protegidas, envía el
+  header: `Authorization: Bearer <token>`.
+- Política de acceso:
+
+| Recurso / acción | Quién puede |
+|------------------|-------------|
+| `health`, `auth/registro`, `auth/login`, `reportes/catalogo` | Público (sin token) |
+| Lecturas (`GET`) de cualquier recurso, reportes | Cualquier usuario **autenticado** |
+| Escribir `usuarios` / `instructores` / `estudiantes` / `categorias` | Solo **admin** |
+| Escribir `cursos` / `modulos` / `lecciones` | **instructor** o **admin** |
+| `POST /inscripciones` (OC-01) | **estudiante** o **admin** |
+| `POST /certificados` (OC-02) | **instructor** o **admin** |
+
+> Nota de seguridad académica: `auth/registro` permite elegir el rol (incluido `admin`) para
+> facilitar las pruebas. En producción, la creación de admins debería estar restringida.
 
 ### 3. Importar la colección de Postman
 
 1. Abre **Postman → Import**.
 2. Selecciona `postman/EduSphere.postman_collection.json`.
-3. La colección trae la variable `{{baseUrl}}` = `http://localhost:3000/api` y variables de
-   id (`{{usuarioId}}`, `{{cursoId}}`, etc.). Ajusta `baseUrl` en **Variables** de la colección
-   si usas otro puerto, y rellena las variables de id con los valores que devuelven los `POST`.
-4. Empieza por **Salud → GET Health**, luego crea datos con los `POST` del CRUD y prueba
-   operaciones/reportes.
+3. La colección trae las variables `{{baseUrl}}` = `http://localhost:3000/api`, `{{token}}` y
+   variables de id (`{{usuarioId}}`, `{{cursoId}}`, etc.). Ajusta `baseUrl` si usas otro puerto.
+4. **Autentícate primero:** ejecuta **Autenticación → POST registro** (o **POST login**). Un
+   script guarda el token automáticamente en `{{token}}`, y todos los demás requests lo envían
+   solos (la colección usa Bearer Token a nivel de colección).
+5. Luego crea datos con los `POST` del CRUD (en orden por las FK: usuarios → instructores/
+   estudiantes → categorías → cursos → módulos → lecciones) y prueba operaciones/reportes.
+   Ve pegando los ids devueltos en las variables de la colección.
