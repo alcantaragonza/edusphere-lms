@@ -3,14 +3,17 @@
 const express = require('express');
 const controlador = require('../controllers/instructores.controller');
 const { rutasCrud } = require('./crud.routes');
+const { autenticar, requiereRol } = require('../middlewares/auth');
 
 const router = express.Router();
 
-// Endpoint de reporte ANTES del CRUD genérico para que /:id/ingresos no choque.
-// RC-04: GET /api/instructores/:id/ingresos?desde=&hasta=
-router.get('/:id/ingresos', controlador.ingresos);
+// RC-04: ingresos del instructor. Lo ven instructor o admin (autenticados).
+router.get('/:id/ingresos', autenticar, requiereRol('admin', 'instructor'), controlador.ingresos);
 
-// CRUD estándar (POST /, GET /, GET /:id, PATCH /:id, DELETE /:id).
-router.use('/', rutasCrud(controlador));
+// CRUD: leer autenticado, escribir solo admin.
+router.use('/', rutasCrud(controlador, {
+  lectura: [autenticar],
+  escritura: [autenticar, requiereRol('admin')],
+}));
 
 module.exports = router;
