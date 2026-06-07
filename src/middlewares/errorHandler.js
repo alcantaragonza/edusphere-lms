@@ -26,6 +26,8 @@ function mapearErrorPg(err) {
     case '42883': // undefined_function: la función/SP aún no existe en tu BD
     case '42P01': // undefined_table: la vista/tabla aún no existe en tu BD
       return { status: 501, error: 'Objeto de BD no implementado todavía', detalle: err.message };
+    case '42703': // undefined_column: falta una columna (ej. no corriste docs/auth.sql)
+      return { status: 500, error: 'Falta una columna en la base de datos', detalle: `${err.message}. ¿Corriste las migraciones (p. ej. docs/auth.sql)?` };
     default:
       return null;
   }

@@ -7,6 +7,11 @@ require('dotenv').config();
 const app = require('./src/app');
 const { pool } = require('./src/config/db');
 
+// Aviso temprano si falta configuración crítica de auth.
+if (!process.env.JWT_SECRET) {
+  console.warn('[EduSphere] ⚠️  JWT_SECRET no está definido en .env: /api/auth/* fallará. Agrégalo y reinicia.');
+}
+
 const PORT = Number(process.env.PORT) || 3000;
 
 const server = app.listen(PORT, () => {

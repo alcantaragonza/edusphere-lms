@@ -12,13 +12,19 @@ const ROLES = ['instructor', 'estudiante', 'admin'];
 const SALT_ROUNDS = 10;
 const MIN_PASSWORD = 8;
 
-// Firma un JWT con los datos públicos del usuario.
-function firmarToken(usuario) {
+// Lanza un error claro si falta el secreto para firmar tokens.
+function exigirSecret() {
   if (!process.env.JWT_SECRET) {
-    const e = new Error('JWT_SECRET no está configurado en .env');
+    const e = new Error('Configuración del servidor incompleta');
     e.status = 500;
+    e.detalle = 'JWT_SECRET no está definido en el archivo .env. Agrégalo y reinicia el servidor.';
     throw e;
   }
+}
+
+// Firma un JWT con los datos públicos del usuario.
+function firmarToken(usuario) {
+  exigirSecret();
   return jwt.sign(
     { sub: usuario.id, email: usuario.email, rol: usuario.rol },
     process.env.JWT_SECRET,
@@ -29,6 +35,7 @@ function firmarToken(usuario) {
 // POST /api/auth/registro
 // body: { nombre, apellido, email, password, rol, telefono?, fecha_nacimiento? }
 const registro = asyncWrap(async (req, res) => {
+  exigirSecret(); // falla rápido si no hay secreto, antes de crear nada en la BD
   exigirRequeridos(req.body, ['nombre', 'apellido', 'email', 'password', 'rol']);
   const { nombre, apellido, email, password, rol, telefono, fecha_nacimiento } = req.body;
 
@@ -57,6 +64,7 @@ const registro = asyncWrap(async (req, res) => {
 // POST /api/auth/login
 // body: { email, password }
 const login = asyncWrap(async (req, res) => {
+  exigirSecret();
   exigirRequeridos(req.body, ['email', 'password']);
   const { email, password } = req.body;
 
