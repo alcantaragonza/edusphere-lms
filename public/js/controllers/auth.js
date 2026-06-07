@@ -121,9 +121,7 @@ export function authController() {
 
       try {
         const res = await login(email, password);
-        localStorage.setItem('edusphere_token', res.token);
-        localStorage.setItem('edusphere_user_id', res.user?.id || res.usuario?.id);
-        state.user = res.user || res.usuario;
+        state.user = res.usuario || res.user;
         state.cartCount = res.cart_count || 0;
         showToast({ type: 'success', title: '¡Bienvenido!', message: `Sesión iniciada como ${state.user.nombre}` });
         redirectByRole(state.user.rol);
@@ -207,7 +205,7 @@ function renderLoginForm() {
       </div>
       <div class="form-group">
         <label class="form-label">Contraseña</label>
-        <input type="password" name="password" class="form-input" placeholder="Tu contraseña" required minlength="6">
+        <input type="password" name="password" class="form-input" placeholder="Tu contraseña" required minlength="8">
       </div>
       <button type="submit" class="btn btn-primary btn-lg" style="width:100%;margin-top:var(--space-2)">Iniciar Sesión</button>
     </form>
@@ -231,7 +229,7 @@ function renderRegisterForm() {
       </div>
       <div class="form-group">
         <label class="form-label">Contraseña</label>
-        <input type="password" name="password" class="form-input" placeholder="Mín. 6 caracteres" required minlength="6">
+        <input type="password" name="password" class="form-input" placeholder="Mín. 8 caracteres" required minlength="8">
       </div>
       <div class="form-group">
         <label class="form-label">Rol</label>
