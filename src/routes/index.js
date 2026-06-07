@@ -8,6 +8,9 @@ const router = express.Router();
 // Salud.
 router.use('/', require('./health.routes')); // GET /api/health
 
+// Autenticación (registro / login).
+router.use('/auth', require('./auth.routes'));
+
 // CRUD de recursos.
 router.use('/usuarios', require('./usuarios.routes'));
 router.use('/instructores', require('./instructores.routes'));
