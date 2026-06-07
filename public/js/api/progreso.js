@@ -1,5 +1,5 @@
 /**
- * Progreso API (MongoDB).
+ * Progreso API — Backend solo tiene RC-03 (consulta). Guardado es mock.
  */
 import { api } from './client.js';
 

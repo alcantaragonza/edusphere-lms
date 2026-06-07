@@ -122,6 +122,7 @@ export function authController() {
       try {
         const res = await login(email, password);
         localStorage.setItem('edusphere_token', res.token);
+        localStorage.setItem('edusphere_user_id', res.user?.id || res.usuario?.id);
         state.user = res.user || res.usuario;
         state.cartCount = res.cart_count || 0;
         showToast({ type: 'success', title: '¡Bienvenido!', message: `Sesión iniciada como ${state.user.nombre}` });
@@ -138,15 +139,17 @@ export function authController() {
     registerForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const nombre = registerForm.querySelector('[name="nombre"]').value;
+      const apellido = registerForm.querySelector('[name="apellido"]').value;
       const email = registerForm.querySelector('[name="email"]').value;
       const password = registerForm.querySelector('[name="password"]').value;
       const rol = registerForm.querySelector('[name="rol"]').value;
 
       try {
-        await register({ nombre, email, password, rol });
-        showToast({ type: 'success', title: '¡Cuenta creada!', message: 'Inicia sesión con tu nueva cuenta.' });
-        toggleForms(main, 'login');
-        window.location.hash = '#/login';
+        const res = await register({ nombre, apellido, email, password, rol });
+        state.user = res.usuario || res.user;
+        state.cartCount = 0;
+        showToast({ type: 'success', title: '¡Cuenta creada!', message: `Bienvenido, ${state.user.nombre}` });
+        redirectByRole(state.user.rol);
       } catch (err) {
         showError(main, err.data?.error || 'Error al registrarse');
       }
@@ -156,6 +159,7 @@ export function authController() {
 
 function doLogin(user, redirect) {
   localStorage.setItem('edusphere_token', 'demo-mock-jwt');
+  localStorage.setItem('edusphere_user_id', user.id);
   state.user = user;
   state.cartCount = 0;
   showToast({ type: 'success', title: `¡Hola ${user.nombre}!`, message: `Sesión como ${user.rol}` });
@@ -216,6 +220,10 @@ function renderRegisterForm() {
       <div class="form-group">
         <label class="form-label">Nombre Completo</label>
         <input type="text" name="nombre" class="form-input" placeholder="Tu nombre" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Apellido</label>
+        <input type="text" name="apellido" class="form-input" placeholder="Tu apellido">
       </div>
       <div class="form-group">
         <label class="form-label">Correo Electrónico</label>

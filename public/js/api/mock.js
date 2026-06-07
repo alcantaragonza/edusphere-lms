@@ -1,6 +1,6 @@
 /**
- * Mock API Handler — Simulates all API endpoints for demo mode.
- * Activated automatically when the real API is unreachable.
+ * Mock API Handler — Alineado con backend real + datos demo.
+ * Backend paths: /api/cursos, /api/modulos, /api/lecciones, etc.
  */
 import {
   courses, modules, reviews, cart,
@@ -10,218 +10,179 @@ import {
   students,
 } from './mock-data.js';
 
-/**
- * Route a mock API call based on method + path.
- * Returns { data, error } — mimics fetch response.
- */
 export function handleMock(method, path, body) {
-  // Simulate network delay
-  const delay = () => new Promise(r => setTimeout(r, 150 + Math.random() * 300));
+  const delay = () => new Promise(r => setTimeout(r, 100 + Math.random() * 200));
 
   const handlers = {
     // ─── Auth ───────────────────────────────────────
+    'POST /auth/registro': async () => {
+      const { nombre, apellido, email, password, rol } = body || {};
+      const id = 'u' + (Object.keys(students).length + 1);
+      students[id] = { id, nombre: nombre + (apellido ? ' ' + apellido : ''), email, rol: rol || 'estudiante' };
+      return { data: { token: 'demo-jwt-' + id, usuario: students[id] } };
+    },
     'POST /auth/login': async () => {
       const { email } = body || {};
-      // Find matching demo user
       const user = Object.values(students).find(u => u.email === email);
-      if (!user) return { status: 401, data: { error: 'Invalid credentials' } };
-      return {
-        data: { token: 'mock-jwt-token', user, cart_count: cart.length },
-      };
+      if (!user) return { status: 401, data: { error: 'Credenciales inválidas' } };
+      return { data: { token: 'demo-jwt-' + user.id, usuario: user } };
     },
-    'POST /auth/register': async () => {
-      const { nombre, email, rol } = body || {};
-      const id = 'u' + (Object.keys(students).length + 1);
-      students[id] = { id, nombre, email, rol: rol || 'estudiante' };
-      return { data: { message: 'User created', user: students[id] } };
-    },
-    'GET /auth/me': async () => {
-      return { data: students['u1'] };
+    'GET /auth/yo': async () => {
+      // En mock, devuelve el primer estudiante como usuario autenticado
+      const userId = 'u1';
+      return { data: students[userId] || null };
     },
 
-    // ─── Courses Catalog ────────────────────────────
+    // ─── Cursos (catálogo + instructor) ─────────────
     'GET /cursos': async (path) => {
       const url = new URL('http://x' + path);
       const page = parseInt(url.searchParams.get('page') || '1');
       const limit = 6;
-      const start = (page - 1) * limit;
-      return {
-        data: {
-          cursos: courses.slice(start, start + limit),
-          page,
-          total_pages: Math.ceil(courses.length / limit),
-          total: courses.length,
-        }
-      };
-    },
+      const instructorId = url.searchParams.get('instructor_id');
 
-    // ─── Course Detail ──────────────────────────────
-    'GET /cursos/:slug': async (path) => {
-      const slug = path.split('/').pop();
-      const course = courses.find(c => c.slug === slug);
-      if (!course) return { status: 404, data: { error: 'Course not found' } };
-      return { data: course };
-    },
-
-    // ─── Course Modules ─────────────────────────────
-    'GET /cursos/:slug/modulos': async (path) => {
-      const parts = path.split('/');
-      const slug = parts[2];
-      const course = courses.find(c => c.slug === slug);
-      if (!course) return { status: 404, data: { error: 'Course not found' } };
-      return { data: modules[course.id] || [] };
-    },
-
-    // ─── Course Lessons ─────────────────────────────
-    'GET /cursos/:slug/lecciones/:lessonId': async (path) => {
-      const parts = path.split('/');
-      const slug = parts[2];
-      const lessonId = parts[4];
-      const course = courses.find(c => c.slug === slug);
-      if (!course) return { status: 404, data: { error: 'Course not found' } };
-      const mods = modules[course.id] || [];
-      for (const m of mods) {
-        const lesson = m.lecciones?.find(l => l.id === lessonId);
-        if (lesson) return { data: { ...lesson, modulo_orden: m.orden } };
+      if (instructorId) {
+        return { data: { cursos: instructorCourses, ...instructorEarnings } };
       }
-      return { status: 404, data: { error: 'Lesson not found' } };
+
+      let filtered = courses;
+      const start = (page - 1) * limit;
+      return { data: { cursos: filtered.slice(start, start + limit), page, total_pages: Math.ceil(filtered.length / limit), total: filtered.length } };
+    },
+    'GET /cursos/:id': async (path) => {
+      const id = path.split('/').pop();
+      const course = courses.find(c => c.id === id || c.slug === id);
+      return course ? { data: course } : { status: 404, data: { error: 'Curso no encontrado' } };
     },
 
-    // ─── Reviews ────────────────────────────────────
-    'GET /cursos/:slug/resenas': async (path) => {
-      const parts = path.split('/');
-      const slug = parts[2];
-      const course = courses.find(c => c.slug === slug);
-      if (!course) return { data: { resenas: [] } };
-      return { data: { resenas: reviews[course.id] || [] } };
+    // ─── Módulos ─────────────────────────────────────
+    'GET /modulos': async (path) => {
+      const url = new URL('http://x' + path);
+      const cursoId = url.searchParams.get('curso_id');
+      if (cursoId) return { data: modules[cursoId] || [] };
+      const all = Object.entries(modules).flatMap(([cid, mods]) => mods.map(m => ({ ...m, curso_id: cid })));
+      return { data: all };
     },
-    'POST /cursos/:slug/resenas': async (path) => {
-      const parts = path.split('/');
-      const slug = parts[2];
-      const { calificacion, comentario } = body || {};
-      return {
-        data: {
-          id: 'r-new',
-          usuario_nombre: 'You',
-          calificacion,
-          comentario,
-          created_at: new Date().toISOString(),
+
+    // ─── Lecciones ───────────────────────────────────
+    'GET /lecciones': async (path) => {
+      const url = new URL('http://x' + path);
+      const moduloId = url.searchParams.get('modulo_id');
+      if (moduloId) {
+        for (const mods of Object.values(modules)) {
+          const found = mods.find(m => m.id === moduloId);
+          if (found) return { data: found.lecciones || [] };
         }
-      };
+        return { data: [] };
+      }
+      const allLecciones = [];
+      for (const mods of Object.values(modules)) {
+        for (const m of mods) {
+          for (const l of (m.lecciones || [])) allLecciones.push(l);
+        }
+      }
+      return { data: allLecciones };
+    },
+    'GET /lecciones/:id': async (path) => {
+      const id = path.split('/').pop();
+      for (const mods of Object.values(modules)) {
+        for (const m of mods) {
+          const found = (m.lecciones || []).find(l => l.id === id);
+          if (found) return { data: { ...found, modulo_orden: m.orden } };
+        }
+      }
+      return { status: 404, data: { error: 'Lección no encontrada' } };
     },
 
-    // ─── Cart ───────────────────────────────────────
-    'GET /carrito': async () => {
-      const total = cart.reduce((s, i) => s + (i.precio || 0), 0);
-      return { data: { items: cart, total } };
+    // ─── Reseñas (mock-only) ─────────────────────────
+    'GET /cursos/:id/resenas': async (path) => {
+      const parts = path.split('/');
+      const cursoId = parts[2];
+      const course = courses.find(c => c.id === cursoId || c.slug === cursoId);
+      return { data: course ? (reviews[course.id] || []) : [] };
     },
+
+    // ─── Carrito (mock-only) ─────────────────────────
+    'GET /carrito': async () => { const t = cart.reduce((s, i) => s + (i.precio || 0), 0); return { data: { items: cart, total: t } }; },
     'POST /carrito': async () => {
       const { curso_id } = body || {};
-      const course = courses.find(c => c.slug === curso_id || c.id === curso_id);
-      if (!course) return { status: 404, data: { error: 'Course not found' } };
-      const item = addToCartMock(course.slug);
-      return { data: item };
+      const course = courses.find(c => c.id === curso_id || c.slug === curso_id);
+      if (!course) return { status: 404, data: { error: 'Curso no encontrado' } };
+      return { data: addToCartMock(course.slug) };
     },
-    'DELETE /carrito/:id': async (path) => {
-      const itemId = path.split('/').pop();
-      removeFromCartMock(itemId);
-      return { data: { message: 'Removed' } };
-    },
+    'DELETE /carrito/:id': async (path) => { removeFromCartMock(path.split('/').pop()); return { data: { message: 'Eliminado' } }; },
 
-    // ─── Enrollments / My Courses ───────────────────
-    'GET /inscripciones/mis-cursos': async () => {
+    // ─── Inscripciones ──────────────────────────────
+    'GET /estudiantes/:id/cursos': async () => {
       return { data: { cursos: enrollments } };
     },
-    'GET /inscripciones/:id/avance': async (path) => {
-      const cursoId = path.split('/')[2];
-      const enrollment = enrollments.find(e => e.curso_id === cursoId);
-      return { data: { avance: enrollment?.porcentaje_avance || 0 } };
+    'GET /estudiantes/:id/cursos/:cid/avance': async (path) => {
+      const cid = path.split('/')[4];
+      const e = enrollments.find(en => en.curso_id === cid);
+      return { data: { avance: e?.porcentaje_avance || 0 } };
     },
     'POST /inscripciones': async () => {
       const { curso_id } = body || {};
       const course = courses.find(c => c.id === curso_id);
-      if (!course) return { status: 404, data: { error: 'Course not found' } };
+      if (!course) return { status: 404, data: { error: 'Curso no encontrado' } };
       const exists = enrollments.find(e => e.curso_id === curso_id);
-      if (exists) return { data: { message: 'Already enrolled' } };
-      enrollments.push({
-        id: 'en' + (enrollments.length + 1),
-        curso_id: course.id,
-        slug: course.slug,
-        titulo: course.titulo,
-        instructor: course.instructor,
-        imagen_url: course.imagen_url,
-        porcentaje_avance: 0,
-        lecciones_completadas: 0,
-        total_lecciones: course.total_lecciones,
-      });
+      if (exists) return { data: { message: 'Ya inscrito' } };
+      enrollments.push({ id: 'en' + (enrollments.length + 1), curso_id: course.id, slug: course.slug, titulo: course.titulo, instructor: course.instructor, imagen_url: '', porcentaje_avance: 0, lecciones_completadas: 0, total_lecciones: course.total_lecciones });
       clearCartMock();
-      return { data: { message: 'Enrolled successfully' } };
+      return { data: { message: 'Inscrito exitosamente' } };
     },
 
-    // ─── Certificates ───────────────────────────────
-    'GET /certificados': async () => {
-      return { data: { certificados: certificates } };
-    },
+    // ─── Certificados ───────────────────────────────
+    'GET /certificados': async () => ({ data: { certificados: certificates } }),
     'GET /certificados/:id': async (path) => {
       const id = path.split('/').pop();
       const cert = certificates.find(c => c.id === id || c.codigo === id);
-      if (!cert) return { status: 404, data: { error: 'Certificate not found' } };
-      return { data: cert };
+      return cert ? { data: cert } : { status: 404, data: { error: 'No encontrado' } };
     },
-    'GET /certificados/verificar/:code': async (path) => {
-      const code = path.split('/').pop();
-      const cert = certificates.find(c => c.codigo === code);
-      if (!cert) return { status: 404, data: { error: 'Invalid certificate code' } };
-      return { data: { valid: true, certificate: cert } };
+    'POST /certificados': async () => {
+      return { data: { id: 'cert-new', codigo: 'EDU-NEW-001', fecha_emision: new Date().toISOString() } };
     },
 
-    // ─── Progress ───────────────────────────────────
+    // ─── Progreso (mock-only) ────────────────────────
     'POST /progreso': async () => {
       const { leccion_id, completada } = body || {};
-      // Find the lesson in modules and mark it
-      for (const [cid, mods] of Object.entries(modules)) {
+      for (const mods of Object.values(modules)) {
         for (const m of mods) {
-          const lesson = m.lecciones?.find(l => l.id === leccion_id);
-          if (lesson) {
-            lesson.completada = completada !== false;
-            return { data: { message: 'Progress saved' } };
-          }
+          const l = (m.lecciones || []).find(ls => ls.id === leccion_id);
+          if (l) { l.completada = completada !== false; return { data: { message: 'Progreso guardado' } }; }
         }
       }
-      return { data: { message: 'Progress saved' } };
-    },
-    'GET /progreso/:id': async () => {
-      return { data: { completada: false, tiempo_visto: 0 } };
+      return { data: { message: 'Progreso guardado' } };
     },
 
     // ─── Instructor ─────────────────────────────────
-    'GET /instructor/cursos': async () => {
-      return { data: { cursos: instructorCourses, ...instructorEarnings } };
+    'GET /instructores/:id/ingresos': async () => {
+      return { data: instructorEarnings };
+    },
+    'GET /instructores': async () => {
+      return { data: [{ id: 'i1', nombre: 'Dra. Sarah Jenkins', usuario_id: 'u2', biografia: 'Experta en React', anos_experiencia: 8 }] };
+    },
+
+    // ─── Categorías ─────────────────────────────────
+    'GET /categorias': async () => {
+      const cats = [...new Set(courses.map(c => c.categoria))].map((nombre, i) => ({ id: i + 1, nombre, slug: nombre.toLowerCase().replace(/\s+/g, '-') }));
+      return { data: cats };
     },
   };
 
-  // Match route
   const routeKey = `${method} ${path}`;
   let handler = handlers[routeKey];
 
-  // Try parameterized routes
   if (!handler) {
     for (const [pattern, fn] of Object.entries(handlers)) {
       if (pattern.includes(':')) {
         const regex = new RegExp('^' + pattern.replace(/:[^/]+/g, '[^/]+') + '$');
-        if (regex.test(routeKey)) {
-          handler = fn;
-          break;
-        }
+        if (regex.test(routeKey)) { handler = fn; break; }
       }
     }
   }
 
   if (!handler) {
-    return delay().then(() => ({
-      status: 404,
-      data: { error: `Mock: No handler for ${method} ${path}` },
-    }));
+    return delay().then(() => ({ status: 404, data: { error: `Mock: sin handler para ${method} ${path}` } }));
   }
 
   return delay().then(() => handler(path));

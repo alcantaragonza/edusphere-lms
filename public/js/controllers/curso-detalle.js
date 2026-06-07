@@ -1,13 +1,14 @@
 /**
- * Detalle de Curso — Módulos, lecciones, reseñas.
+ * Detalle de Curso — Por slug (busca ID desde caché).
  * Ruta: #/curso/:slug
  */
 import { state } from '../utils/state.js';
 import { createEl } from '../utils/dom.js';
-import { formatPrice, formatNumber, formatDuration } from '../utils/formatters.js';
-import { getCourseBySlug, getCourseModules } from '../api/cursos.js';
+import { formatPrice, formatNumber } from '../utils/formatters.js';
+import { getCourseById, getCourseModules, getModuleLessons } from '../api/cursos.js';
 import { getReviews } from '../api/resenas.js';
 import { addToCart } from '../api/carrito.js';
+import { getCourseBySlug } from '../utils/course-cache.js';
 import { Navbar } from '../components/Navbar.js';
 import { Footer } from '../components/Footer.js';
 import { StarRatingDisplay } from '../components/StarRating.js';
@@ -27,23 +28,33 @@ export async function cursoDetalleController(params) {
 
   main.appendChild(LoadingSpinner({ text: 'Cargando curso...' }));
 
-  try {
-    const [course, modules, reviews] = await Promise.all([
-      getCourseBySlug(slug),
-      getCourseModules(slug),
-      getReviews(slug).catch(() => ({ resenas: [] })),
-    ]);
+  // Buscar ID desde caché
+  const cached = getCourseBySlug(slug);
+  if (!cached) {
+    main.innerHTML = `<div class="container section text-center"><h2>Curso no encontrado</h2><a href="#/" class="btn btn-primary" style="margin-top:var(--space-6)">Explorar Cursos</a></div>`;
+    return;
+  }
 
-    const c = course.data || course;
-    const mods = modules.data || modules || [];
-    const res = reviews.resenas || reviews.data || [];
+  try {
+    const courseRes = await getCourseById(cached.id);
+    const c = courseRes.data || courseRes;
+    const modsData = await getCourseModules(cached.id);
+    const mods = Array.isArray(modsData) ? modsData : (modsData.data || []);
+
+    // Fetch lessons for each module
+    const modulesWithLessons = await Promise.all(mods.map(async m => ({
+      ...m,
+      lecciones: Array.isArray(m.lecciones) ? m.lecciones : await getModuleLessons(m.id).then(r => Array.isArray(r) ? r : (r.data || [])).catch(() => []),
+    })));
+
+    // Reviews
+    let res = [];
+    try { const revData = await getReviews(cached.id); res = revData.resenas || revData.data || (Array.isArray(revData) ? revData : []); } catch (_) {}
 
     main.innerHTML = `
       <div class="container" style="padding-block:var(--space-8)">
         <nav style="margin-bottom:var(--space-6);font-size:var(--fs-body-sm)">
           <a href="#/" class="text-muted">Cursos</a>
-          <span class="text-muted" style="margin:0 var(--space-2)">/</span>
-          <span class="text-muted">${c.categoria || 'Categoría'}</span>
           <span class="text-muted" style="margin:0 var(--space-2)">/</span>
           <span style="color:var(--color-text)">${c.titulo}</span>
         </nav>
@@ -64,9 +75,9 @@ export async function cursoDetalleController(params) {
             </div>
 
             <div class="flex items-center gap-4" style="margin-bottom:var(--space-8);padding:var(--space-4);background:var(--color-surface);border-radius:var(--radius-lg);border:1px solid var(--color-border)">
-              <span class="navbar-avatar" style="width:3rem;height:3rem;font-size:1.25rem">${(c.instructor_nombre || c.instructor || 'I')[0].toUpperCase()}</span>
+              <span class="navbar-avatar" style="width:3rem;height:3rem;font-size:1.25rem">${(c.instructor_nombre || 'I')[0].toUpperCase()}</span>
               <div>
-                <p class="fw-semibold">${c.instructor_nombre || c.instructor || 'Instructor'}</p>
+                <p class="fw-semibold">${c.instructor_nombre || 'Instructor'}</p>
                 <p class="text-muted" style="font-size:var(--fs-body-sm)">Instructor del curso</p>
               </div>
             </div>
@@ -94,8 +105,8 @@ export async function cursoDetalleController(params) {
 
           <div class="card" style="position:sticky;top:5rem">
             <div class="course-card-image" style="aspect-ratio:16/9">
-              ${c.imagen_url
-                ? `<img src="${c.imagen_url}" alt="${c.titulo}">`
+              ${c.imagen_portada_url
+                ? `<img src="${c.imagen_portada_url}" alt="${c.titulo}">`
                 : `<div class="course-card-image-placeholder"><span class="material-symbols-rounded" style="font-size:4rem">play_circle</span></div>`
               }
             </div>
@@ -104,16 +115,16 @@ export async function cursoDetalleController(params) {
                 <span style="font-size:var(--fs-display-md);font-weight:var(--fw-extrabold);color:var(--color-accent)">
                   ${formatPrice(c.precio || 0)}
                 </span>
-                ${c.precio_original && c.precio_original > c.precio
-                  ? `<span style="text-decoration:line-through;color:var(--color-text-muted)">${formatPrice(c.precio_original)}</span>
-                     <span class="tag tag-accent">50% DESC</span>`
+                ${c.precio_descuento && c.precio_descuento < c.precio
+                  ? `<span style="text-decoration:line-through;color:var(--color-text-muted)">${formatPrice(c.precio)}</span>
+                     <span class="tag tag-accent">${Math.round((1 - c.precio_descuento/c.precio)*100)}% DESC</span>`
                   : ''
                 }
               </div>
 
               ${state.isAuthenticated() && state.hasRole('estudiante')
                 ? `
-                  <button class="btn btn-accent btn-lg" id="btn-enroll" style="width:100%">Inscribirse Ahora</button>
+                  <button class="btn btn-accent btn-lg" style="width:100%">Inscribirse Ahora</button>
                   <button class="btn btn-outline btn-lg" id="btn-cart" style="width:100%">
                     <span class="material-symbols-rounded">shopping_cart</span> Agregar al Carrito
                   </button>
@@ -130,11 +141,11 @@ export async function cursoDetalleController(params) {
                 <ul style="display:flex;flex-direction:column;gap:var(--space-3);font-size:var(--fs-body-sm)">
                   <li class="flex items-center gap-2 text-muted">
                     <span class="material-symbols-rounded text-primary" style="font-size:1.1rem">video_library</span>
-                    ${c.total_horas || '24'} horas de video bajo demanda
+                    ${c.duracion_horas || '24'} horas de video bajo demanda
                   </li>
                   <li class="flex items-center gap-2 text-muted">
                     <span class="material-symbols-rounded text-primary" style="font-size:1.1rem">description</span>
-                    12 ejercicios prácticos
+                    Ejercicios prácticos
                   </li>
                   <li class="flex items-center gap-2 text-muted">
                     <span class="material-symbols-rounded text-primary" style="font-size:1.1rem">all_inclusive</span>
@@ -153,9 +164,9 @@ export async function cursoDetalleController(params) {
     `;
 
     const accordionContainer = main.querySelector('#lesson-accordion');
-    if (mods.length > 0) {
+    if (modulesWithLessons.length > 0) {
       accordionContainer.appendChild(LessonAccordion({
-        modules: mods,
+        modules: modulesWithLessons,
         onLessonClick: (lessonId) => {
           window.location.hash = `#/curso/${slug}/aprender?lesson=${lessonId}`;
         }
@@ -168,7 +179,7 @@ export async function cursoDetalleController(params) {
     if (btnCart) {
       btnCart.addEventListener('click', async () => {
         try {
-          await addToCart(slug);
+          await addToCart(cached.id);
           showToast({ type: 'success', title: 'Agregado al carrito', message: `${c.titulo} se agregó a tu carrito.` });
         } catch {
           showToast({ type: 'error', title: 'Error', message: 'No se pudo agregar al carrito.' });
@@ -177,12 +188,6 @@ export async function cursoDetalleController(params) {
     }
 
   } catch (err) {
-    main.innerHTML = `
-      <div class="container section text-center">
-        <span class="material-symbols-rounded" style="font-size:4rem;color:var(--color-error)">error</span>
-        <h2 style="margin-top:var(--space-4)">Curso no encontrado</h2>
-        <p class="text-muted" style="margin-top:var(--space-2)">El curso que buscas no existe o fue removido.</p>
-        <a href="#/" class="btn btn-primary" style="margin-top:var(--space-6)">Explorar Cursos</a>
-      </div>`;
+    main.innerHTML = `<div class="container section text-center"><h2>Error al cargar el curso</h2><p class="text-muted">${err.message}</p><a href="#/" class="btn btn-primary" style="margin-top:var(--space-6)">Explorar Cursos</a></div>`;
   }
 }

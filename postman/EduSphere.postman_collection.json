@@ -2,11 +2,16 @@
   "info": {
     "name": "EduSphere LMS API",
     "_postman_id": "edusphere-lms-api-collection",
-    "description": "Colección completa de la API de EduSphere LMS (Express 5 + PostgreSQL).\n\nConfigura la variable {{baseUrl}} (por defecto http://localhost:3000/api). Las variables de id ({{usuarioId}}, {{cursoId}}, etc.) puedes irlas rellenando con los ids que devuelven los POST.\n\nLos reportes y las operaciones críticas (inscripciones/certificados) dependen de objetos de BD (vistas, funciones y stored procedures) que implementa el equipo de base de datos.",
+    "description": "Colección completa de la API de EduSphere LMS (Express 5 + PostgreSQL).\n\nConfigura la variable {{baseUrl}} (por defecto http://localhost:3000/api).\n\nAUTENTICACIÓN: la colección usa Bearer Token {{token}} a nivel de colección. Ejecuta primero 'Autenticación → POST login' (o registro): un script guarda el token automáticamente en la variable {{token}}, y los demás requests lo enviarán solos.\n\nLas variables de id ({{usuarioId}}, {{cursoId}}, etc.) puedes irlas rellenando con los ids que devuelven los POST.\n\nLos reportes y las operaciones críticas (inscripciones/certificados) dependen de objetos de BD (vistas, funciones y stored procedures) que implementa el equipo de base de datos.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:3000/api" },
+    { "key": "token", "value": "" },
     { "key": "usuarioId", "value": "00000000-0000-0000-0000-000000000000" },
     { "key": "instructorId", "value": "1" },
     { "key": "estudianteId", "value": "00000000-0000-0000-0000-000000000000" },
@@ -18,11 +23,79 @@
   ],
   "item": [
     {
+      "name": "Autenticación",
+      "item": [
+        {
+          "name": "POST registro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Guarda el token devuelto en la variable de colección {{token}}.",
+                  "var d = pm.response.json();",
+                  "if (d && d.token) { pm.collectionVariables.set('token', d.token); }",
+                  "if (d && d.usuario && d.usuario.id) { pm.collectionVariables.set('usuarioId', d.usuario.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Alex\",\n  \"apellido\": \"Admin\",\n  \"email\": \"admin@edusphere.com\",\n  \"password\": \"secret123\",\n  \"rol\": \"admin\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/registro", "host": ["{{baseUrl}}"], "path": ["auth", "registro"] }
+          }
+        },
+        {
+          "name": "POST login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Guarda el token devuelto en la variable de colección {{token}}.",
+                  "var d = pm.response.json();",
+                  "if (d && d.token) { pm.collectionVariables.set('token', d.token); }",
+                  "if (d && d.usuario && d.usuario.id) { pm.collectionVariables.set('usuarioId', d.usuario.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@edusphere.com\",\n  \"password\": \"secret123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "GET yo (usuario del token)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/auth/yo", "host": ["{{baseUrl}}"], "path": ["auth", "yo"] }
+          }
+        }
+      ]
+    },
+    {
       "name": "Salud",
       "item": [
         {
           "name": "GET Health",
           "request": {
+            "auth": { "type": "noauth" },
             "method": "GET",
             "header": [],
             "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }

@@ -1,13 +1,12 @@
 /**
- * Reseñas API (MongoDB).
+ * Reseñas API — No existe en backend. Mock-only.
  */
 import { api } from './client.js';
 
-export async function getReviews(courseSlug, params = {}) {
-  const qs = new URLSearchParams(params).toString();
-  return api.get(`/cursos/${courseSlug}/resenas${qs ? '?' + qs : ''}`);
+export async function getReviews(courseId) {
+  return api.get(`/cursos/${courseId}/resenas`);
 }
 
-export async function createReview(courseSlug, data) {
-  return api.post(`/cursos/${courseSlug}/resenas`, data);
+export async function createReview(courseId, data) {
+  return api.post(`/cursos/${courseId}/resenas`, data);
 }

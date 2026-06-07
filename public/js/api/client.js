@@ -1,10 +1,10 @@
 /**
- * HTTP Client — Fetch wrapper with auth, error handling.
- * Automatically falls back to mock data when API is unreachable.
+ * HTTP Client — Fetch wrapper con auth y fallback automático a mock.
+ * Backend: Express 5 + PostgreSQL (edusphere-lms-production.up.railway.app)
  */
 import { handleMock } from './mock.js';
 
-const API_BASE = 'http://localhost:3000/api/v1';
+const API_BASE = 'https://edusphere-lms-production.up.railway.app/api';
 
 let apiAvailable = null;
 
@@ -30,19 +30,30 @@ async function request(method, endpoint, body = null) {
     const res = await fetch(`${API_BASE}${endpoint}`, config);
     const contentType = res.headers.get('content-type') || '';
     const isJson = contentType.includes('application/json');
-    const data = isJson ? await res.json().catch(() => null) : null;
+    const text = await res.text();
+    let data = null;
 
-    // If non-JSON response (serve's 404 HTML page), API is not running
+    if (isJson && text) {
+      try { data = JSON.parse(text); } catch (_) { data = null; }
+    }
+
+    // Non-JSON response → API unreachable, use mocks
     if (!isJson && !res.ok) {
       apiAvailable = false;
-      console.log('[EduSphere] API not available (non-JSON response), switching to mock data');
+      console.log('[EduSphere] API no disponible (respuesta no-JSON), usando datos demo');
       return mockRequest(method, endpoint, body);
+    }
+
+    // Empty response = OK but no data yet (backend works, just empty)
+    if ((res.status === 200 || res.status === 201 || res.status === 204) && !text) {
+      apiAvailable = true;
+      return data || {};
     }
 
     apiAvailable = true;
 
     if (!res.ok) {
-      const error = new Error(data?.error || `HTTP ${res.status}`);
+      const error = new Error(data?.error || data?.message || `HTTP ${res.status}`);
       error.status = res.status;
       error.data = data;
       throw error;
@@ -50,10 +61,9 @@ async function request(method, endpoint, body = null) {
 
     return data;
   } catch (err) {
-    // Network error (connection refused, etc.) — switch to mocks
     if (err.name === 'TypeError' || err.message === 'Failed to fetch') {
       apiAvailable = false;
-      console.log('[EduSphere] API unreachable, using mock data');
+      console.log('[EduSphere] API inalcanzable, usando datos demo');
       return mockRequest(method, endpoint, body);
     }
     throw err;
@@ -62,14 +72,12 @@ async function request(method, endpoint, body = null) {
 
 async function mockRequest(method, endpoint, body) {
   const result = await handleMock(method, endpoint, body);
-
   if (result.status && result.status >= 400) {
-    const error = new Error(result.data?.error || 'Mock error');
+    const error = new Error(result.data?.error || 'Error simulado');
     error.status = result.status;
     error.data = result.data;
     throw error;
   }
-
   return result.data;
 }
 

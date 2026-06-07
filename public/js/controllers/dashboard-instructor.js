@@ -5,7 +5,7 @@
 import { state } from '../utils/state.js';
 import { createEl } from '../utils/dom.js';
 import { formatCurrency, formatNumber } from '../utils/formatters.js';
-import { getInstructorCourses } from '../api/cursos.js';
+import { api } from '../api/client.js';
 import { Navbar } from '../components/Navbar.js';
 import { Footer } from '../components/Footer.js';
 import { LoadingSpinner } from '../components/LoadingSpinner.js';
@@ -28,8 +28,24 @@ export async function dashboardInstructorController() {
   main.appendChild(LoadingSpinner({ text: 'Cargando dashboard...' }));
 
   try {
-    const data = await getInstructorCourses().catch(() => ({ cursos: [] }));
-    const cursos = data.cursos || data.data || [];
+    // Buscar instructor por usuario_id
+    const userId = localStorage.getItem('edusphere_user_id');
+    let instructorId = userId; // fallback
+    let earnings = {};
+
+    try {
+      const instructores = await api.get('/instructores');
+      const list = Array.isArray(instructores) ? instructores : (instructores.data || []);
+      const inst = list.find(i => i.usuario_id === userId);
+      if (inst) {
+        instructorId = inst.id;
+        const ingData = await api.get(`/instructores/${instructorId}/ingresos`);
+        earnings = ingData.data || ingData || {};
+      }
+    } catch (_) {}
+
+    const cursosData = await api.get(`/cursos?instructor_id=${instructorId}`);
+    const cursos = cursosData.cursos || cursosData.data || [];
     const user = state.user;
 
     const totalStudents = cursos.reduce((s, c) => s + (c.total_estudiantes || 0), 0);
@@ -62,7 +78,7 @@ export async function dashboardInstructorController() {
           </div>
           <div class="card" style="padding:var(--space-6)">
             <span class="material-symbols-rounded text-success" style="font-size:2rem">payments</span>
-            <p style="font-size:var(--fs-display-md);font-weight:var(--fw-extrabold);margin-top:var(--space-2)">${formatCurrency(data.net_earnings || 0)}</p>
+            <p style="font-size:var(--fs-display-md);font-weight:var(--fw-extrabold);margin-top:var(--space-2)">${formatCurrency(earnings.net_earnings || 0)}</p>
             <p class="text-muted" style="font-size:var(--fs-body-sm)">Ganancias Netas</p>
           </div>
         </div>
@@ -84,7 +100,7 @@ export async function dashboardInstructorController() {
                           <h4 style="font-size:var(--fs-body-md)">${c.titulo}</h4>
                           <span class="tag ${c.estado === 'publicado' ? 'tag-success' : c.estado === 'borrador' ? 'tag-secondary' : ''}">${c.estado === 'publicado' ? 'Publicado' : c.estado === 'borrador' ? 'Borrador' : 'Archivado'}</span>
                         </div>
-                        <p class="text-muted" style="font-size:var(--fs-body-sm)">${c.categoria || ''} · ${formatNumber(c.total_estudiantes || 0)} Inscritos</p>
+                        <p class="text-muted" style="font-size:var(--fs-body-sm)">${c.categoria_nombre || c.categoria || ''} · ${formatNumber(c.total_estudiantes || 0)} Inscritos</p>
                       </div>
                       <a href="#/curso/${c.slug}" class="btn btn-ghost btn-sm">Gestionar</a>
                     </div>
@@ -98,21 +114,17 @@ export async function dashboardInstructorController() {
         <div class="card" style="padding:var(--space-6);margin-top:var(--space-8)">
           <h3 style="font-size:var(--fs-body-md);margin-bottom:var(--space-4)">Resumen Financiero</h3>
           <div class="flex items-center justify-between" style="margin-bottom:var(--space-2)">
-            <span class="text-muted">Balance Total</span>
-            <span class="fw-bold">${formatCurrency(data.total_balance || 0)}</span>
-          </div>
-          <div class="flex items-center justify-between" style="margin-bottom:var(--space-2)">
             <span class="text-muted">Ganancias Brutas</span>
-            <span>${formatCurrency(data.gross_earnings || 0)}</span>
+            <span>${formatCurrency(earnings.gross_earnings || 0)}</span>
           </div>
           <div class="flex items-center justify-between" style="margin-bottom:var(--space-2)">
             <span class="text-muted">Comisión Plataforma (30%)</span>
-            <span class="text-error">-${formatCurrency(data.platform_fee || 0)}</span>
+            <span class="text-error">-${formatCurrency(earnings.platform_fee || 0)}</span>
           </div>
           <div style="border-top:1px solid var(--color-border);padding-top:var(--space-3);margin-top:var(--space-3)">
             <div class="flex items-center justify-between">
               <span class="fw-bold">Próximo Pago</span>
-              <span style="font-size:var(--fs-headline-sm);font-weight:var(--fw-extrabold);color:var(--color-success)">${formatCurrency(data.net_earnings || 0)}</span>
+              <span style="font-size:var(--fs-headline-sm);font-weight:var(--fw-extrabold);color:var(--color-success)">${formatCurrency(earnings.net_earnings || 0)}</span>
             </div>
           </div>
         </div>
@@ -120,11 +132,6 @@ export async function dashboardInstructorController() {
     `;
 
   } catch (err) {
-    main.innerHTML = `
-      <div class="container section text-center">
-        <h2>No se pudo cargar el dashboard</h2>
-        <p class="text-muted">Intenta de nuevo más tarde.</p>
-        <button class="btn btn-primary" style="margin-top:var(--space-6)" onclick="window.location.reload()">Reintentar</button>
-      </div>`;
+    main.innerHTML = `<div class="container section text-center"><h2>No se pudo cargar el dashboard</h2><p class="text-muted">Intenta de nuevo.</p><button class="btn btn-primary" style="margin-top:var(--space-6)" onclick="window.location.reload()">Reintentar</button></div>`;
   }
 }

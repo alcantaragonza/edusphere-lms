@@ -1,16 +1,33 @@
 /**
- * Auth API — Login, Register, Me.
+ * Auth API — Backend: POST /auth/registro, POST /auth/login, GET /auth/yo.
+ * Token JWT via Bearer, guardado automáticamente en localStorage.
  */
 import { api } from './client.js';
 
 export async function login(email, password) {
-  return api.post('/auth/login', { email, password });
+  const res = await api.post('/auth/login', { email, password });
+  if (res.token) {
+    localStorage.setItem('edusphere_token', res.token);
+    if (res.usuario?.id) localStorage.setItem('edusphere_user_id', res.usuario.id);
+  }
+  return res;
 }
 
 export async function register(data) {
-  return api.post('/auth/register', data);
+  const res = await api.post('/auth/registro', {
+    nombre: data.nombre,
+    apellido: data.apellido || '',
+    email: data.email,
+    password: data.password,
+    rol: data.rol || 'estudiante',
+  });
+  if (res.token) {
+    localStorage.setItem('edusphere_token', res.token);
+    if (res.usuario?.id) localStorage.setItem('edusphere_user_id', res.usuario.id);
+  }
+  return res;
 }
 
 export async function me() {
-  return api.get('/auth/me');
+  return api.get('/auth/yo');
 }

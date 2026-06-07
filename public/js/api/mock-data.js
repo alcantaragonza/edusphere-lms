@@ -184,9 +184,9 @@ export const certificates = [
 ];
 
 export const instructorCourses = [
-  { id: 'c1', slug: 'arquitectura-react-avanzada', titulo: 'Arquitectura Avanzada en React', categoria: 'Programación', total_estudiantes: 4200, calificacion_promedio: 4.8, estado: 'publicado', imagen_url: '' },
-  { id: 'c5', slug: 'ciberseguridad-esencial', titulo: 'Ciberseguridad Esencial', categoria: 'Tecnología', total_estudiantes: 856, calificacion_promedio: 4.5, estado: 'borrador', imagen_url: '' },
-  { id: 'c3', slug: 'innovacion-gestion-estrategica', titulo: 'Innovación y Gestión Estratégica', categoria: 'Negocios', total_estudiantes: 2100, calificacion_promedio: 4.2, estado: 'archivado', imagen_url: '' },
+  { id: 'c1', slug: 'arquitectura-react-avanzada', titulo: 'Arquitectura Avanzada en React', categoria: 'Programación', total_estudiantes: 4200, calificacion_promedio: 4.8, estado: 'publicado', imagen_url: '', instructor_id: 'i1' },
+  { id: 'c5', slug: 'ciberseguridad-esencial', titulo: 'Ciberseguridad Esencial', categoria: 'Tecnología', total_estudiantes: 856, calificacion_promedio: 4.5, estado: 'borrador', imagen_url: '', instructor_id: 'i1' },
+  { id: 'c3', slug: 'innovacion-gestion-estrategica', titulo: 'Innovación y Gestión Estratégica', categoria: 'Negocios', total_estudiantes: 2100, calificacion_promedio: 4.2, estado: 'archivado', imagen_url: '', instructor_id: 'i1' },
 ];
 
 export const instructorEarnings = {

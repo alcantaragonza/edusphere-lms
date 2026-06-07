@@ -50,6 +50,7 @@ class State {
     this.user = null;
     this.cartCount = 0;
     localStorage.removeItem('edusphere_token');
+    localStorage.removeItem('edusphere_user_id');
     localStorage.removeItem('edusphere_state');
   }
 
