@@ -18,10 +18,19 @@ const { query } = require('../config/db');
 function crearModelo(config) {
   const { tabla, insertable, updatable } = config;
   const idColumn = config.idColumn || 'id';
+  // Columnas sensibles que NUNCA deben salir en las respuestas (ej. password_hash).
+  const ocultar = config.ocultar || [];
 
   // Toma de "data" solo las columnas permitidas y presentes (no undefined).
   function columnasPresentes(data, permitidas) {
     return permitidas.filter((col) => data[col] !== undefined);
+  }
+
+  // Quita las columnas ocultas de una fila antes de devolverla.
+  function limpiar(row) {
+    if (!row) return row;
+    for (const col of ocultar) delete row[col];
+    return row;
   }
 
   async function crear(data) {
@@ -37,20 +46,20 @@ function crearModelo(config) {
       `INSERT INTO ${tabla} (${cols.join(', ')}) ` +
       `VALUES (${placeholders.join(', ')}) RETURNING *`;
     const { rows } = await query(sql, valores);
-    return rows[0];
+    return limpiar(rows[0]);
   }
 
   async function listar({ limit = 50, offset = 0 } = {}) {
     const sql =
       `SELECT * FROM ${tabla} ORDER BY ${idColumn} LIMIT $1 OFFSET $2`;
     const { rows } = await query(sql, [limit, offset]);
-    return rows;
+    return rows.map(limpiar);
   }
 
   async function obtenerPorId(id) {
     const sql = `SELECT * FROM ${tabla} WHERE ${idColumn} = $1`;
     const { rows } = await query(sql, [id]);
-    return rows[0] || null;
+    return limpiar(rows[0]) || null;
   }
 
   async function actualizar(id, data) {
@@ -68,7 +77,7 @@ function crearModelo(config) {
       `UPDATE ${tabla} SET ${sets.join(', ')} ` +
       `WHERE ${idColumn} = $${valores.length} RETURNING *`;
     const { rows } = await query(sql, valores);
-    return rows[0] || null;
+    return limpiar(rows[0]) || null;
   }
 
   async function eliminar(id) {
