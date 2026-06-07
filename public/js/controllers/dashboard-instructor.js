@@ -156,6 +156,11 @@ export async function dashboardInstructorController() {
 }
 
 async function openCreateCourseModal(instructorId) {
+  // Validar que instructorId sea numérico (smallint), no UUID
+  if (!instructorId || isNaN(Number(instructorId))) {
+    showToast({ type: 'error', title: 'Perfil de instructor no configurado', message: 'Un administrador debe crear tu perfil de instructor primero.' });
+    return;
+  }
   // Cargar categorías
   let categorias = [];
   try {
@@ -180,8 +185,8 @@ async function openCreateCourseModal(instructorId) {
       <div class="grid grid-2" style="gap:var(--space-4)">
         <div class="form-group">
           <label class="form-label">Categoría</label>
-          <select name="categoria_id" class="form-input">
-            <option value="">Sin categoría</option>
+          <select name="categoria_id" class="form-input" required>
+            <option value="">Selecciona una categoría</option>
             ${categorias.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('')}
           </select>
         </div>
@@ -255,7 +260,7 @@ async function openCreateCourseModal(instructorId) {
     // Construir body según Postman
     const body = {
       instructor_id: instructorId,
-      categoria_id: data.categoria_id ? parseInt(data.categoria_id) : null,
+      categoria_id: parseInt(data.categoria_id) || 1,
       estado: 'publicado',
       nivel: data.nivel || 'principiante',
       slug: data.slug || slugify(data.titulo),
