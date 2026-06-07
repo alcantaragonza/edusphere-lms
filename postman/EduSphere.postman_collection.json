@@ -1,0 +1,578 @@
+{
+  "info": {
+    "name": "EduSphere LMS API",
+    "_postman_id": "edusphere-lms-api-collection",
+    "description": "Colección completa de la API de EduSphere LMS (Express 5 + PostgreSQL).\n\nConfigura la variable {{baseUrl}} (por defecto http://localhost:3000/api).\n\nAUTENTICACIÓN: la colección usa Bearer Token {{token}} a nivel de colección. Ejecuta primero 'Autenticación → POST login' (o registro): un script guarda el token automáticamente en la variable {{token}}, y los demás requests lo enviarán solos.\n\nLas variables de id ({{usuarioId}}, {{cursoId}}, etc.) puedes irlas rellenando con los ids que devuelven los POST.\n\nLos reportes y las operaciones críticas (inscripciones/certificados) dependen de objetos de BD (vistas, funciones y stored procedures) que implementa el equipo de base de datos.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api" },
+    { "key": "token", "value": "" },
+    { "key": "usuarioId", "value": "00000000-0000-0000-0000-000000000000" },
+    { "key": "instructorId", "value": "1" },
+    { "key": "estudianteId", "value": "00000000-0000-0000-0000-000000000000" },
+    { "key": "categoriaId", "value": "1" },
+    { "key": "cursoId", "value": "00000000-0000-0000-0000-000000000000" },
+    { "key": "moduloId", "value": "00000000-0000-0000-0000-000000000000" },
+    { "key": "leccionId", "value": "00000000-0000-0000-0000-000000000000" },
+    { "key": "inscripcionId", "value": "00000000-0000-0000-0000-000000000000" }
+  ],
+  "item": [
+    {
+      "name": "Autenticación",
+      "item": [
+        {
+          "name": "POST registro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Guarda el token devuelto en la variable de colección {{token}}.",
+                  "var d = pm.response.json();",
+                  "if (d && d.token) { pm.collectionVariables.set('token', d.token); }",
+                  "if (d && d.usuario && d.usuario.id) { pm.collectionVariables.set('usuarioId', d.usuario.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Alex\",\n  \"apellido\": \"Admin\",\n  \"email\": \"admin@edusphere.com\",\n  \"password\": \"secret123\",\n  \"rol\": \"admin\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/registro", "host": ["{{baseUrl}}"], "path": ["auth", "registro"] }
+          }
+        },
+        {
+          "name": "POST login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Guarda el token devuelto en la variable de colección {{token}}.",
+                  "var d = pm.response.json();",
+                  "if (d && d.token) { pm.collectionVariables.set('token', d.token); }",
+                  "if (d && d.usuario && d.usuario.id) { pm.collectionVariables.set('usuarioId', d.usuario.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@edusphere.com\",\n  \"password\": \"secret123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "GET yo (usuario del token)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/auth/yo", "host": ["{{baseUrl}}"], "path": ["auth", "yo"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Salud",
+      "item": [
+        {
+          "name": "GET Health",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Usuarios",
+      "item": [
+        {
+          "name": "POST crear usuario",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Ana\",\n  \"apellido\": \"García\",\n  \"email\": \"ana.garcia@example.com\",\n  \"fecha_nacimiento\": \"1998-05-12\",\n  \"rol\": \"estudiante\",\n  \"modificado_por\": 1\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/usuarios", "host": ["{{baseUrl}}"], "path": ["usuarios"] }
+          }
+        },
+        {
+          "name": "GET lista usuarios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/usuarios?limit=50&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["usuarios"],
+              "query": [{ "key": "limit", "value": "50" }, { "key": "offset", "value": "0" }]
+            }
+          }
+        },
+        {
+          "name": "GET usuario por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/usuarios/{{usuarioId}}", "host": ["{{baseUrl}}"], "path": ["usuarios", "{{usuarioId}}"] }
+          }
+        },
+        {
+          "name": "PATCH actualizar usuario",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Ana María\",\n  \"modificado_por\": 1\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/usuarios/{{usuarioId}}", "host": ["{{baseUrl}}"], "path": ["usuarios", "{{usuarioId}}"] }
+          }
+        },
+        {
+          "name": "DELETE usuario",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/usuarios/{{usuarioId}}", "host": ["{{baseUrl}}"], "path": ["usuarios", "{{usuarioId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Instructores",
+      "item": [
+        {
+          "name": "POST crear instructor",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 1,\n  \"usuario_id\": \"{{usuarioId}}\",\n  \"biografia\": \"Ingeniera de software con 8 años de experiencia.\",\n  \"anos_experiencia\": 8,\n  \"metodo_pago\": \"transferencia\",\n  \"referencia_pago\": \"GT00-1234-5678\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/instructores", "host": ["{{baseUrl}}"], "path": ["instructores"] }
+          }
+        },
+        {
+          "name": "GET lista instructores",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/instructores", "host": ["{{baseUrl}}"], "path": ["instructores"] }
+          }
+        },
+        {
+          "name": "GET instructor por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/instructores/{{instructorId}}", "host": ["{{baseUrl}}"], "path": ["instructores", "{{instructorId}}"] }
+          }
+        },
+        {
+          "name": "PATCH actualizar instructor",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"biografia\": \"Bio actualizada.\",\n  \"anos_experiencia\": 9\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/instructores/{{instructorId}}", "host": ["{{baseUrl}}"], "path": ["instructores", "{{instructorId}}"] }
+          }
+        },
+        {
+          "name": "DELETE instructor",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/instructores/{{instructorId}}", "host": ["{{baseUrl}}"], "path": ["instructores", "{{instructorId}}"] }
+          }
+        },
+        {
+          "name": "GET ingresos instructor (RC-04)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/instructores/{{instructorId}}/ingresos?desde=2026-01-01&hasta=2026-06-30",
+              "host": ["{{baseUrl}}"],
+              "path": ["instructores", "{{instructorId}}", "ingresos"],
+              "query": [{ "key": "desde", "value": "2026-01-01" }, { "key": "hasta", "value": "2026-06-30" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Estudiantes",
+      "item": [
+        {
+          "name": "POST crear estudiante",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario_id\": \"{{usuarioId}}\",\n  \"fecha_nacimiento\": \"1998-05-12\",\n  \"ocupacion\": \"Desarrolladora\",\n  \"nivel_educativo\": \"Universitario\",\n  \"intereses\": \"backend, bases de datos\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/estudiantes", "host": ["{{baseUrl}}"], "path": ["estudiantes"] }
+          }
+        },
+        {
+          "name": "GET lista estudiantes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/estudiantes", "host": ["{{baseUrl}}"], "path": ["estudiantes"] }
+          }
+        },
+        {
+          "name": "GET estudiante por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/estudiantes/{{estudianteId}}", "host": ["{{baseUrl}}"], "path": ["estudiantes", "{{estudianteId}}"] }
+          }
+        },
+        {
+          "name": "PATCH actualizar estudiante",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ocupacion\": \"Backend Developer\",\n  \"intereses\": \"node, postgres, sql\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/estudiantes/{{estudianteId}}", "host": ["{{baseUrl}}"], "path": ["estudiantes", "{{estudianteId}}"] }
+          }
+        },
+        {
+          "name": "DELETE estudiante",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/estudiantes/{{estudianteId}}", "host": ["{{baseUrl}}"], "path": ["estudiantes", "{{estudianteId}}"] }
+          }
+        },
+        {
+          "name": "GET cursos del estudiante (RC-02)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/estudiantes/{{estudianteId}}/cursos", "host": ["{{baseUrl}}"], "path": ["estudiantes", "{{estudianteId}}", "cursos"] }
+          }
+        },
+        {
+          "name": "GET avance en curso (RC-03)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/estudiantes/{{estudianteId}}/cursos/{{cursoId}}/avance", "host": ["{{baseUrl}}"], "path": ["estudiantes", "{{estudianteId}}", "cursos", "{{cursoId}}", "avance"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categorias",
+      "item": [
+        {
+          "name": "POST crear categoria",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 1,\n  \"nombre\": \"Programación\",\n  \"slug\": \"programacion\",\n  \"descripcion\": \"Cursos de desarrollo de software\",\n  \"icono_url\": \"https://cdn.example.com/icons/code.svg\",\n  \"color_hex\": \"#3366FF\",\n  \"activa\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/categorias", "host": ["{{baseUrl}}"], "path": ["categorias"] }
+          }
+        },
+        {
+          "name": "GET lista categorias",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/categorias", "host": ["{{baseUrl}}"], "path": ["categorias"] }
+          }
+        },
+        {
+          "name": "GET categoria por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/categorias/{{categoriaId}}", "host": ["{{baseUrl}}"], "path": ["categorias", "{{categoriaId}}"] }
+          }
+        },
+        {
+          "name": "PATCH actualizar categoria",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descripcion\": \"Cursos de programación y arquitectura\",\n  \"activa\": false\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/categorias/{{categoriaId}}", "host": ["{{baseUrl}}"], "path": ["categorias", "{{categoriaId}}"] }
+          }
+        },
+        {
+          "name": "DELETE categoria",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/categorias/{{categoriaId}}", "host": ["{{baseUrl}}"], "path": ["categorias", "{{categoriaId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cursos",
+      "item": [
+        {
+          "name": "POST crear curso",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"instructor_id\": 1,\n  \"categoria_id\": 1,\n  \"categoria\": \"publicado\",\n  \"nivel\": \"intermedio\",\n  \"slug\": \"node-postgres-pro\",\n  \"titulo\": \"Node.js + PostgreSQL profesional\",\n  \"descripcion\": \"Construye APIs robustas con Express 5 y pg.\",\n  \"idioma\": \"es\",\n  \"imagen_portada_url\": \"https://cdn.example.com/cursos/node-pg.jpg\",\n  \"precio\": 199.99,\n  \"precio_descuento\": 149.99,\n  \"duracion_horas\": 12.5,\n  \"permite_certificado\": true,\n  \"fecha_publicacion\": \"2026-06-01T00:00:00Z\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/cursos", "host": ["{{baseUrl}}"], "path": ["cursos"] }
+          }
+        },
+        {
+          "name": "GET lista cursos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/cursos", "host": ["{{baseUrl}}"], "path": ["cursos"] }
+          }
+        },
+        {
+          "name": "GET curso por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/cursos/{{cursoId}}", "host": ["{{baseUrl}}"], "path": ["cursos", "{{cursoId}}"] }
+          }
+        },
+        {
+          "name": "PATCH actualizar curso",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"precio\": 179.99,\n  \"categoria\": \"archivado\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/cursos/{{cursoId}}", "host": ["{{baseUrl}}"], "path": ["cursos", "{{cursoId}}"] }
+          }
+        },
+        {
+          "name": "DELETE curso",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/cursos/{{cursoId}}", "host": ["{{baseUrl}}"], "path": ["cursos", "{{cursoId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Modulos",
+      "item": [
+        {
+          "name": "POST crear modulo",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"curso_id\": \"{{cursoId}}\",\n  \"titulo\": \"Fundamentos de pg\",\n  \"descripcion\": \"Pool, queries parametrizadas y transacciones.\",\n  \"orden\": 1,\n  \"duracion_total_min\": 90,\n  \"es_gratuito\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/modulos", "host": ["{{baseUrl}}"], "path": ["modulos"] }
+          }
+        },
+        {
+          "name": "GET lista modulos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/modulos", "host": ["{{baseUrl}}"], "path": ["modulos"] }
+          }
+        },
+        {
+          "name": "GET modulo por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/modulos/{{moduloId}}", "host": ["{{baseUrl}}"], "path": ["modulos", "{{moduloId}}"] }
+          }
+        },
+        {
+          "name": "PATCH actualizar modulo",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Fundamentos de node-postgres\",\n  \"es_gratuito\": false\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/modulos/{{moduloId}}", "host": ["{{baseUrl}}"], "path": ["modulos", "{{moduloId}}"] }
+          }
+        },
+        {
+          "name": "DELETE modulo",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/modulos/{{moduloId}}", "host": ["{{baseUrl}}"], "path": ["modulos", "{{moduloId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lecciones",
+      "item": [
+        {
+          "name": "POST crear leccion",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"modulo_id\": \"{{moduloId}}\",\n  \"tipo\": \"video\",\n  \"titulo\": \"Conectando con el Pool\",\n  \"descripcion\": \"Cómo configurar el Pool de pg.\",\n  \"contenido_url\": \"https://cdn.example.com/lecciones/pool.mp4\",\n  \"contenido_texto\": null,\n  \"duracion_minutos\": 12,\n  \"orden\": 1,\n  \"permite_descarga\": false\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/lecciones", "host": ["{{baseUrl}}"], "path": ["lecciones"] }
+          }
+        },
+        {
+          "name": "GET lista lecciones",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/lecciones", "host": ["{{baseUrl}}"], "path": ["lecciones"] }
+          }
+        },
+        {
+          "name": "GET leccion por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/lecciones/{{leccionId}}", "host": ["{{baseUrl}}"], "path": ["lecciones", "{{leccionId}}"] }
+          }
+        },
+        {
+          "name": "PATCH actualizar leccion",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Conectando con el Pool de pg\",\n  \"duracion_minutos\": 15\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/lecciones/{{leccionId}}", "host": ["{{baseUrl}}"], "path": ["lecciones", "{{leccionId}}"] }
+          }
+        },
+        {
+          "name": "DELETE leccion",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/lecciones/{{leccionId}}", "host": ["{{baseUrl}}"], "path": ["lecciones", "{{leccionId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Operaciones criticas",
+      "item": [
+        {
+          "name": "POST inscribir estudiante (OC-01)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estudiante_id\": \"{{estudianteId}}\",\n  \"curso_id\": \"{{cursoId}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/inscripciones", "host": ["{{baseUrl}}"], "path": ["inscripciones"] }
+          }
+        },
+        {
+          "name": "POST emitir certificado (OC-02)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inscripcion_id\": \"{{inscripcionId}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/certificados", "host": ["{{baseUrl}}"], "path": ["certificados"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reportes",
+      "item": [
+        {
+          "name": "GET catalogo cursos publicados (RC-01)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/reportes/catalogo", "host": ["{{baseUrl}}"], "path": ["reportes", "catalogo"] }
+          }
+        },
+        {
+          "name": "GET ingresos mensuales (RC-05)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/reportes/ingresos-mensuales", "host": ["{{baseUrl}}"], "path": ["reportes", "ingresos-mensuales"] }
+          }
+        },
+        {
+          "name": "GET top cursos trimestre (RC-06)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/reportes/top-cursos", "host": ["{{baseUrl}}"], "path": ["reportes", "top-cursos"] }
+          }
+        },
+        {
+          "name": "GET tasa de finalizacion (RC-07)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/reportes/tasa-finalizacion", "host": ["{{baseUrl}}"], "path": ["reportes", "tasa-finalizacion"] }
+          }
+        }
+      ]
+    }
+  ]
+}
