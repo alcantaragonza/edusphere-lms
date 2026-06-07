@@ -14,10 +14,12 @@ async function buscarPorEmail(email) {
 // Crea un usuario con su hash de contraseña.
 // RETURNING NO incluye password_hash, para nunca devolver el hash en la respuesta.
 async function crearUsuario(datos) {
+  // modificado_por es UUID (FK a usuarios.id). En el registro propio nadie lo
+  // modifica, así que no se envía y la columna queda en NULL.
   const sql = `
     INSERT INTO usuarios
-      (nombre, apellido, email, password_hash, rol, telefono, fecha_nacimiento, modificado_por)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      (nombre, apellido, email, password_hash, rol, telefono, fecha_nacimiento)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
     RETURNING id, nombre, apellido, email, rol, fecha_registro`;
   const valores = [
     datos.nombre,
@@ -27,8 +29,6 @@ async function crearUsuario(datos) {
     datos.rol,
     datos.telefono ?? null,
     datos.fecha_nacimiento ?? null,
-    // modificado_por es smallint NOT NULL sin default; 0 = "registro propio/sistema".
-    datos.modificado_por ?? 0,
   ];
   const { rows } = await query(sql, valores);
   return rows[0];
