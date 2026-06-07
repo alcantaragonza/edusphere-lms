@@ -1,5 +1,5 @@
 /**
- * Autenticación — Login / Registro.
+ * Autenticación — Login / Registro contra backend real.
  * Ruta: #/login[?tab=register]
  */
 import { state } from '../utils/state.js';
@@ -8,25 +8,6 @@ import { login, register } from '../api/auth.js';
 import { Navbar } from '../components/Navbar.js';
 import { Footer } from '../components/Footer.js';
 import { showToast } from '../components/Toast.js';
-
-const DEMO_ACCOUNTS = [
-  {
-    label: 'Estudiante',
-    icon: 'school',
-    email: 'alex@demo.com',
-    password: 'demo123',
-    user: { id: 'u1', nombre: 'Alex Rivera', email: 'alex@demo.com', rol: 'estudiante' },
-    redirect: '#/mis-cursos',
-  },
-  {
-    label: 'Instructor',
-    icon: 'cast_for_education',
-    email: 'sarah@demo.com',
-    password: 'demo123',
-    user: { id: 'u2', nombre: 'Dra. Sarah Jenkins', email: 'sarah@demo.com', rol: 'instructor' },
-    redirect: '#/instructor',
-  },
-];
 
 export function authController() {
   const app = document.getElementById('app');
@@ -49,25 +30,6 @@ export function authController() {
           <p class="text-muted" style="margin-top:var(--space-2)">${isRegister ? 'Crea tu cuenta' : 'Inicia sesión para continuar'}</p>
         </div>
 
-        <div id="demo-login" style="margin-bottom:var(--space-6);padding:var(--space-4);background:var(--color-surface-hover);border-radius:var(--radius-lg);border:1px solid var(--color-border)">
-          <p style="font-size:var(--fs-caption);color:var(--color-text-muted);text-align:center;margin-bottom:var(--space-3);text-transform:uppercase;letter-spacing:0.05em">Acceso Rápido Demo</p>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
-            ${DEMO_ACCOUNTS.map(acc => `
-              <button class="btn btn-outline demo-login-btn" data-email="${acc.email}" data-password="${acc.password}"
-                style="flex-direction:column;gap:var(--space-1);padding:var(--space-3)">
-                <span class="material-symbols-rounded" style="font-size:1.5rem">${acc.icon}</span>
-                <span style="font-size:var(--fs-caption)">${acc.label}</span>
-              </button>
-            `).join('')}
-          </div>
-        </div>
-
-        <div style="display:flex;align-items:center;gap:var(--space-4);margin-bottom:var(--space-6)">
-          <div style="flex:1;height:1px;background:var(--color-border)"></div>
-          <span class="text-muted" style="font-size:var(--fs-caption)">o usa email</span>
-          <div style="flex:1;height:1px;background:var(--color-border)"></div>
-        </div>
-
         <div class="flex" style="margin-bottom:var(--space-6);border-bottom:1px solid var(--color-border)">
           <button class="auth-tab ${!isRegister ? 'active' : ''}" data-tab="login"
             style="flex:1;padding:var(--space-3);text-align:center;font-weight:var(--fw-semibold);font-size:var(--fs-body-sm);background:none;border:none;color:${!isRegister ? 'var(--color-primary)' : 'var(--color-text-muted)'};border-bottom:2px solid ${!isRegister ? 'var(--color-primary)' : 'transparent'};cursor:pointer">
@@ -88,15 +50,6 @@ export function authController() {
     </div>
   `;
 
-  // Demo quick login
-  main.querySelectorAll('.demo-login-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const email = btn.dataset.email;
-      const account = DEMO_ACCOUNTS.find(a => a.email === email);
-      if (account) doLogin(account.user, account.redirect);
-    });
-  });
-
   const activeTab = isRegister ? 'register' : 'login';
   toggleForms(main, activeTab);
 
@@ -108,7 +61,7 @@ export function authController() {
     });
   });
 
-  // Login handler
+  // Login
   const loginForm = main.querySelector('#login-form');
   if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
@@ -116,22 +69,19 @@ export function authController() {
       const email = loginForm.querySelector('[name="email"]').value;
       const password = loginForm.querySelector('[name="password"]').value;
 
-      const demoAccount = DEMO_ACCOUNTS.find(a => a.email === email && a.password === password);
-      if (demoAccount) { doLogin(demoAccount.user, demoAccount.redirect); return; }
-
       try {
         const res = await login(email, password);
         state.user = res.usuario || res.user;
-        state.cartCount = res.cart_count || 0;
+        state.cartCount = 0;
         showToast({ type: 'success', title: '¡Bienvenido!', message: `Sesión iniciada como ${state.user.nombre}` });
         redirectByRole(state.user.rol);
       } catch (err) {
-        showError(main, err.data?.error || 'Credenciales inválidas. Prueba: alex@demo.com / demo123');
+        showError(main, err.data?.error || 'Credenciales inválidas');
       }
     });
   }
 
-  // Register handler
+  // Register
   const registerForm = main.querySelector('#register-form');
   if (registerForm) {
     registerForm.addEventListener('submit', async (e) => {
@@ -155,15 +105,6 @@ export function authController() {
       }
     });
   }
-}
-
-function doLogin(user, redirect) {
-  localStorage.setItem('edusphere_token', 'demo-mock-jwt');
-  localStorage.setItem('edusphere_user_id', user.id);
-  state.user = user;
-  state.cartCount = 0;
-  showToast({ type: 'success', title: `¡Hola ${user.nombre}!`, message: `Sesión como ${user.rol}` });
-  window.location.hash = redirect;
 }
 
 function redirectByRole(rol) {
@@ -218,7 +159,7 @@ function renderRegisterForm() {
   return `
     <form id="register-form" class="hidden" style="display:flex;flex-direction:column;gap:var(--space-4)">
       <div class="form-group">
-        <label class="form-label">Nombre Completo</label>
+        <label class="form-label">Nombre</label>
         <input type="text" name="nombre" class="form-input" placeholder="Tu nombre" required>
       </div>
       <div class="form-group">
