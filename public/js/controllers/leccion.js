@@ -61,12 +61,15 @@ export async function leccionController(params) {
 
   try {
     const modsData = await getCourseModules(cursoId);
-    const mods = Array.isArray(modsData) ? modsData : (modsData.data || []);
+    const allMods = Array.isArray(modsData) ? modsData : (modsData.data || []);
+    const mods = allMods.filter(m => m.curso_id === cursoId);
 
-    const modulesWithLessons = await Promise.all(mods.map(async m => ({
+    const allLecciones = await getModuleLessons(null).then(r => Array.isArray(r) ? r : (r.data || [])).catch(() => []);
+
+    const modulesWithLessons = mods.map(m => ({
       ...m,
-      lecciones: Array.isArray(m.lecciones) ? m.lecciones : await getModuleLessons(m.id).then(r => Array.isArray(r) ? r : (r.data || [])).catch(() => []),
-    })));
+      lecciones: allLecciones.filter(l => l.modulo_id === m.id),
+    }));
 
     const totalLessons = modulesWithLessons.reduce((s, m) => s + (m.lecciones?.length || 0), 0);
     const completedLessons = modulesWithLessons.reduce((s, m) => s + (m.lecciones?.filter(l => l.completada).length || 0), 0);

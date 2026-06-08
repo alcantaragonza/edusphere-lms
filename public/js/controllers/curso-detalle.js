@@ -95,13 +95,11 @@ export async function cursoDetalleController(params) {
       const allMods = Array.isArray(modsData) ? modsData : (modsData.data || []);
       mods = allMods.filter(m => m.curso_id === cursoId);
 
-      modulesWithLessons = await Promise.all(mods.map(async m => ({
+      const allLecciones = await getModuleLessons(null).then(r => Array.isArray(r) ? r : (r.data || [])).catch(() => []);
+      modulesWithLessons = mods.map(m => ({
         ...m,
-        lecciones: Array.isArray(m.lecciones) ? m.lecciones : await getModuleLessons(m.id).then(r => {
-          const all = Array.isArray(r) ? r : (r.data || []);
-          return all.filter(l => l.modulo_id === m.id);
-        }).catch(() => []),
-      })));
+        lecciones: allLecciones.filter(l => l.modulo_id === m.id),
+      }));
     } catch (_) {}
   }
 
