@@ -15,12 +15,12 @@ const crud = crearControlador({
 
 // RC-04: GET /api/instructores/:id/ingresos?desde=&hasta=
 // fn_ingresos_instructor(smallint, date, date) RETURNS TABLE
+// `desde` y `hasta` son opcionales: si no llegan, se usa todo el histórico
+// (desde 1900-01-01 hasta hoy), así una llamada sin fechas no da 400.
 const ingresos = asyncWrap(async (req, res) => {
   exigirIdParam(req.params.id, 'entero');
-  const { desde, hasta } = req.query;
-  if (!desde || !hasta) {
-    throw new ErrorValidacion("Se requieren los query params 'desde' y 'hasta' (YYYY-MM-DD)");
-  }
+  const desde = req.query.desde || '1900-01-01';
+  const hasta = req.query.hasta || new Date().toISOString().slice(0, 10);
   if (!esFecha(desde) || !esFecha(hasta)) {
     throw new ErrorValidacion("'desde' y 'hasta' deben ser fechas válidas (YYYY-MM-DD)");
   }
