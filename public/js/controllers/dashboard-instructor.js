@@ -49,15 +49,15 @@ export async function dashboardInstructorController() {
         const rows = Array.isArray(ingData) ? ingData : (ingData.data || []);
         if (rows.length > 0) {
           const total = rows.reduce((acc, r) => {
-            acc.gross += Number(r.ingresos_brutos || r.monto_bruto || r.total_bruto || 0);
-            acc.net += Number(r.ingresos_netos || r.monto_neto || r.total_neto || 0);
-            acc.fee += Number(r.comision || r.plataforma || 0);
+            acc.gross += Number(r.ingreso_bruto || r.ingresos_brutos || 0);
+            acc.net += Number(r.ingreso_neto || r.ingresos_netos || 0);
+            acc.fee += acc.gross - acc.net;
             return acc;
           }, { gross: 0, net: 0, fee: 0 });
           earnings = {
-            net_earnings: total.net || total.gross * 0.7,
+            net_earnings: total.net,
             gross_earnings: total.gross,
-            platform_fee: total.fee || total.gross * 0.3,
+            platform_fee: total.fee,
           };
         }
       } catch (_) {}
