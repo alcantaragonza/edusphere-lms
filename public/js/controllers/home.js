@@ -58,7 +58,7 @@ export async function homeController() {
   } catch (_) {}
 
   todosCursos = todosCursos
-    .filter(c => c.estado === 'publicado' || c.estado === undefined)
+    .filter(c => c.estado === 'publicado' || c.categoria === 'publicado' || c.estado === undefined)
     .map(c => ({
     ...c,
     instructor: c.instructor || c.instructor_nombre || c.instructor_name || c.nombre_instructor || '',

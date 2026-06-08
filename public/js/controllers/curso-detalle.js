@@ -84,7 +84,7 @@ export async function cursoDetalleController(params) {
     return;
   }
 
-  const c = cursoData;
+  const c = { ...cursoData, estado: cursoData.estado || cursoData.categoria };
 
   let mods = [];
   let modulesWithLessons = [];
@@ -259,7 +259,7 @@ export async function cursoDetalleController(params) {
     if (btnPublicar) {
       btnPublicar.addEventListener('click', async () => {
         try {
-          await api.patch(`/cursos/${cursoId}`, { estado: 'publicado' });
+          await api.patch(`/cursos/${cursoId}`, { categoria: 'publicado' });
           showToast({ type: 'success', title: 'Publicado', message: 'El curso ya es visible en el catálogo.' });
           window.location.reload();
         } catch (err) {
@@ -272,7 +272,7 @@ export async function cursoDetalleController(params) {
     if (btnDespublicar) {
       btnDespublicar.addEventListener('click', async () => {
         try {
-          await api.patch(`/cursos/${cursoId}`, { estado: 'borrador' });
+          await api.patch(`/cursos/${cursoId}`, { categoria: 'borrador' });
           showToast({ type: 'success', title: 'Despublicado', message: 'El curso ya no aparece en el catálogo.' });
           window.location.reload();
         } catch (err) {
@@ -285,7 +285,7 @@ export async function cursoDetalleController(params) {
     if (btnReactivar) {
       btnReactivar.addEventListener('click', async () => {
         try {
-          await api.patch(`/cursos/${cursoId}`, { estado: 'borrador' });
+          await api.patch(`/cursos/${cursoId}`, { categoria: 'borrador' });
           showToast({ type: 'success', title: 'Reactivado', message: 'El curso está en borrador nuevamente.' });
           window.location.reload();
         } catch (err) {
