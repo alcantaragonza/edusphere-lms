@@ -6,7 +6,7 @@ import { state } from '../utils/state.js';
 import { createEl } from '../utils/dom.js';
 import { formatPrice, formatNumber, slugify } from '../utils/formatters.js';
 import { getCourseById, getCourseModules, getModuleLessons, getCatalog } from '../api/cursos.js';
-import { getReviews } from '../api/resenas.js';
+import { getReviews, createReview } from '../api/resenas.js';
 import { addToCart } from '../api/carrito.js';
 import { api } from '../api/client.js';
 import { getCourseBySlug } from '../utils/course-cache.js';
@@ -158,8 +158,13 @@ export async function cursoDetalleController(params) {
 
             ${esInstructor ? '' : `
             <h2 style="font-size:var(--fs-headline-sm);margin:var(--space-10) 0 var(--space-4)">Reseñas de Estudiantes</h2>
+            ${state.isAuthenticated() ? `
+              <button class="btn btn-outline btn-sm" id="btn-escribir-resena" style="margin-bottom:var(--space-4)">
+                <span class="material-symbols-rounded">rate_review</span> Escribir Reseña
+              </button>
+            ` : ''}
             <div id="reviews-section">
-              <p class="text-muted">Aún no hay reseñas.</p>
+              <p class="text-muted">Cargando reseñas...</p>
             </div>
             `}
           </div>
@@ -320,21 +325,42 @@ export async function cursoDetalleController(params) {
         const reviews = Array.isArray(reviewsData) ? reviewsData : (reviewsData.data || []);
         const reviewsSection = main.querySelector('#reviews-section');
         if (reviewsSection && reviews.length > 0) {
-          reviewsSection.innerHTML = reviews.map(r => `
+          reviewsSection.innerHTML = reviews.map(r => {
+            const estrellas = typeof r.calificacion_promedio === 'number' ? r.calificacion_promedio : 4;
+            const nombre = r.estudiante || (r.estudiante_id ? 'Estudiante #' + String(r.estudiante_id).substring(0, 8) : 'Estudiante');
+            const fecha = r.fecha_resena ? new Date(r.fecha_resena).toLocaleDateString('es', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+            return `
             <div class="card" style="margin-bottom:var(--space-4);padding:var(--space-5)">
               <div class="flex items-center gap-3" style="margin-bottom:var(--space-3)">
-                <span class="navbar-avatar" style="width:2.5rem;height:2.5rem;font-size:0.9rem">${(r.estudiante || 'E')[0].toUpperCase()}</span>
-                <div>
-                  <p class="fw-semibold" style="font-size:var(--fs-body-sm)">${r.estudiante || 'Estudiante'}</p>
-                  <p class="text-muted" style="font-size:var(--fs-body-xs)">${r.fecha_resena ? new Date(r.fecha_resena).toLocaleDateString('es') : ''}</p>
+                <span class="navbar-avatar" style="width:2.5rem;height:2.5rem;font-size:0.9rem">${nombre[0].toUpperCase()}</span>
+                <div style="flex:1">
+                  <div class="flex items-center gap-3">
+                    <p class="fw-semibold" style="font-size:var(--fs-body-sm)">${nombre}</p>
+                    <div style="color:var(--color-accent);font-size:var(--fs-body-sm)">${'★'.repeat(Math.round(estrellas))}${'☆'.repeat(5 - Math.round(estrellas))} ${estrellas}</div>
+                  </div>
+                  ${r.titulo_resena ? `<p class="fw-medium" style="font-size:var(--fs-body-sm)">${r.titulo_resena}</p>` : ''}
+                  <p class="text-muted" style="font-size:var(--fs-body-xs)">${fecha}</p>
                 </div>
-                ${typeof r.calificacion_promedio === 'number' ? StarRatingDisplay({ value: r.calificacion_promedio }).outerHTML : ''}
               </div>
-              <p style="font-size:var(--fs-body-sm);line-height:var(--lh-relaxed)">${r.comentario || r.texto || ''}</p>
+              <div style="display:flex;gap:var(--space-4);margin-bottom:var(--space-3);font-size:var(--fs-caption)">
+                <span class="text-muted">Contenido: ${r.calif_contenido || '—'}/5</span>
+                <span class="text-muted">Claridad: ${r.calif_claridad || '—'}/5</span>
+                <span class="text-muted">Dificultad: ${r.calif_dificultad || '—'}/5</span>
+                <span class="text-muted">Valor: ${r.calif_valor || '—'}/5</span>
+                <span class="text-muted">Instructor: ${r.calif_instructor || '—'}/5</span>
+              </div>
+              <p style="font-size:var(--fs-body-sm);line-height:var(--lh-relaxed)">${r.comentario || ''}</p>
             </div>
-          `).join('');
+          `}).join('');
+        } else if (reviewsSection) {
+          reviewsSection.innerHTML = '<p class="text-muted">Aún no hay reseñas. ¡Sé el primero en opinar!</p>';
         }
       } catch (_) {}
+    }
+
+    const btnEscribirResena = main.querySelector('#btn-escribir-resena');
+    if (btnEscribirResena) {
+      btnEscribirResena.addEventListener('click', () => openResenaModal(cursoId));
     }
 
 }
@@ -608,6 +634,64 @@ async function openEditLessonModal(id, titulo, desc, contenido, tipo, dur, slug)
       cursoDetalleController({ slug });
     } catch (err) {
       showToast({ type: 'error', title: 'Error', message: err.data?.error || err.message });
+    }
+  });
+}
+
+function openResenaModal(cursoId) {
+  const userId = localStorage.getItem('edusphere_user_id');
+  const formHtml = `
+    <form id="form-resena" style="display:flex;flex-direction:column;gap:var(--space-4)">
+      <div class="form-group">
+        <label class="form-label">Titulo de la resena</label>
+        <input type="text" name="titulo_resena" class="form-input" placeholder="Resumen de tu experiencia" maxlength="100">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Comentario</label>
+        <textarea name="comentario" class="form-input" rows="3" placeholder="Que te parecio el curso?" style="resize:vertical"></textarea>
+      </div>
+      <div class="grid grid-2" style="gap:var(--space-3)">
+        ${['calif_contenido','calif_claridad','calif_dificultad','calif_valor','calif_instructor'].map(name => `
+          <div class="form-group">
+            <label class="form-label">${name.replace('calif_','').replace(/^./, c => c.toUpperCase())}</label>
+            <select name="${name}" class="form-input">
+              <option value="5">5 ★</option><option value="4">4 ★</option><option value="3">3 ★</option><option value="2">2 ★</option><option value="1">1 ★</option>
+            </select>
+          </div>
+        `).join('')}
+      </div>
+    </form>
+  `;
+
+  Modal({
+    title: 'Escribir Resena',
+    content: formHtml,
+    size: 'lg',
+    footer: '<button class="btn btn-ghost" onclick="this.closest(\'.modal-overlay\').remove()">Cancelar</button><button class="btn btn-accent" id="btn-submit-resena">Publicar Resena</button>',
+  });
+
+  document.querySelector('#btn-submit-resena').addEventListener('click', async () => {
+    const form = document.querySelector('#form-resena');
+    if (!form.reportValidity()) return;
+    const fd = new FormData(form);
+    const data = Object.fromEntries(fd.entries());
+    try {
+      await createReview(cursoId, {
+        ...data,
+        estudiante_id: userId,
+        curso_id: cursoId,
+        inscripcion_id: userId,
+        calif_contenido: parseInt(data.calif_contenido),
+        calif_claridad: parseInt(data.calif_claridad),
+        calif_dificultad: parseInt(data.calif_dificultad),
+        calif_valor: parseInt(data.calif_valor),
+        calif_instructor: parseInt(data.calif_instructor),
+      });
+      document.querySelector('.modal-overlay').remove();
+      showToast({ type: 'success', title: 'Resena publicada', message: 'Gracias por compartir tu opinion.' });
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (err) {
+      showToast({ type: 'error', title: 'Error', message: err.data?.error || 'No se pudo publicar.' });
     }
   });
 }
