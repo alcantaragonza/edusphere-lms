@@ -3,33 +3,39 @@ Plataforma LMS para gestión de cursos en línea, inscripciones, progreso estudi
 
 ---
 
-## Backend API (Express 5 + PostgreSQL)
+## Backend API (Express 5 + PostgreSQL + MongoDB)
 
 Capa de aplicación en Node.js (CommonJS) con arquitectura **MVC**. Toda consulta SQL va
 **parametrizada** (`$1, $2, ...`). Los objetos de base de datos (vistas, funciones y
 stored procedures) los implementa el equipo de BD; esta capa solo los **invoca**.
+PostgreSQL es la base principal (datos relacionales) y MongoDB la secundaria
+(colecciones de progreso, reseñas, foros, logs y respuestas de cuestionarios).
 
 ### Stack
-- Node.js >= 18 · Express 5 · `pg` (node-postgres) · `dotenv` · `cors`
+- Node.js >= 18 · Express 5 · `pg` (node-postgres) · `mongoose` (MongoDB) · `dotenv` · `cors`
 - Gestor de paquetes: **pnpm** (`pnpm@10.33.4`)
-- Solo PostgreSQL por ahora (Mongo queda fuera del alcance del backend).
+- PostgreSQL (relacional) + MongoDB (colecciones documentales). Si Mongo está caído,
+  la API sigue arriba: solo las rutas Mongo responden error.
 
 ### Estructura
 ```
-index.js                 entry point: carga dotenv y levanta el server
+index.js                 entry point: carga dotenv, conecta Mongo y levanta el server
 src/
   app.js                 app express (cors, json, rutas, errorHandler)
   config/db.js           Pool de pg reutilizable (lee de .env)
+  config/mongo.js        conexión mongoose a MongoDB (lee de .env)
   models/                SQL (acceso a datos) + factory CRUD
+  models/mongo/          schemas mongoose de las colecciones
   controllers/           reciben req/res, llaman al modelo, devuelven JSON
   routes/                routers de express
   middlewares/           errorHandler central + validación manual
+db/                      esquemas de BD (Postgres/ y Mongo/)
 postman/                 colección de Postman
 ```
 
 ### 1. Levantar el backend desde cero
 
-**Requisitos:** Node.js >= 18, pnpm y Docker (para PostgreSQL vía `infra/docker-compose.yml`).
+**Requisitos:** Node.js >= 18, pnpm y Docker (para PostgreSQL y MongoDB vía `infra/docker-compose.yml`).
 
 ```bash
 # 1) Clonar y entrar al repo
@@ -47,12 +53,17 @@ cp .env.example .env
 #      PORT=3000                   # puerto donde escucha la API
 #      JWT_SECRET="<cadena-larga-aleatoria>"   # secreto para firmar los tokens
 #      JWT_EXPIRES=8h                          # duración del token
-#    Nota: db.js lee las variables POSTGRES_* (compartidas con docker-compose).
+#      MONGO_HOST=localhost
+#      MONGO_PORT=27017                        # puerto del host (mapea al 27017 del contenedor)
+#      MONGO_INITDB_ROOT_USERNAME=<usuario>
+#      MONGO_INITDB_ROOT_PASSWORD="<password>"
+#      MONGO_INITDB_DATABASE=edusphere
+#    Nota: db.js lee POSTGRES_* y mongo.js lee MONGO_* (compartidas con docker-compose).
 
-# 3) Levantar PostgreSQL con Docker
+# 3) Levantar PostgreSQL y MongoDB con Docker
 #    Importante: --env-file .env porque el compose vive en infra/ y, sin esa bandera,
 #    Compose buscaría el .env dentro de infra/ (no en la raíz) y las variables saldrían vacías.
-docker compose --env-file .env -f infra/docker-compose.yml up -d postgres
+docker compose --env-file .env -f infra/docker-compose.yml up -d postgres mongo
 
 # 4) Cargar el esquema SQL en la base (tablas, vistas, funciones y SP).
 #    Ajusta la ruta a tu archivo .sql (p. ej. el de la rama feature/db):
@@ -76,7 +87,8 @@ La API queda en `http://localhost:3000/api`. Verifica con:
 
 ```bash
 curl http://localhost:3000/api/health
-# -> {"ok":true,"db":"up"}
+# -> {"ok":true,"db":"up","mongo":"up"}
+# Si Mongo está caído: {"ok":true,"db":"up","mongo":"down","detalle":"..."} (la API sigue arriba).
 ```
 
 > **Si `/api/health` devuelve `password authentication failed`:** casi siempre es la
@@ -90,8 +102,8 @@ curl http://localhost:3000/api/health
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| GET | `/api/health` | Healthcheck (`SELECT 1`) |
-| POST | `/api/auth/registro` | Crear usuario con contraseña hasheada → devuelve `{ usuario, token }` |
+| GET | `/api/health` | Healthcheck: `SELECT 1` a Postgres + `ping` a Mongo |
+| POST | `/api/auth/registro` | Crear usuario con contraseña hasheada (si el rol es `instructor`/`estudiante`, crea también su perfil en una transacción) → devuelve `{ usuario, token }` |
 | POST | `/api/auth/login` | Iniciar sesión → devuelve `{ usuario, token }` |
 | GET | `/api/auth/yo` | Datos del usuario del token (protegido) |
 | CRUD | `/api/usuarios` `/instructores` `/estudiantes` `/categorias` `/cursos` `/modulos` `/lecciones` | POST, GET lista, GET `/:id`, PATCH `/:id`, DELETE `/:id` |
@@ -104,6 +116,7 @@ curl http://localhost:3000/api/health
 | GET | `/api/reportes/ingresos-mensuales` | RC-05 → `mv_ingresos_mensuales` |
 | GET | `/api/reportes/top-cursos` | RC-06 → `mv_top_cursos_trimestre` |
 | GET | `/api/reportes/tasa-finalizacion` | RC-07 → `vw_tasa_finalizacion` |
+| CRUD | `/api/progreso-lecciones` `/resenas` `/foros` `/cuestionarios-respuestas` `/logs-actividad` | Colecciones **MongoDB** (mongoose): POST, GET lista, GET `/:id`, PATCH `/:id`, DELETE `/:id` |
 
 Códigos de error: **400** validación · **401** no autenticado / token inválido · **403** sin permiso (rol) ·
 **404** no encontrado · **409** conflicto (duplicado/FK) · **501** objeto de BD aún no creado ·
