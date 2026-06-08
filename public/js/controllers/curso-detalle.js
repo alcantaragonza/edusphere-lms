@@ -97,7 +97,10 @@ export async function cursoDetalleController(params) {
 
       modulesWithLessons = await Promise.all(mods.map(async m => ({
         ...m,
-        lecciones: Array.isArray(m.lecciones) ? m.lecciones : await getModuleLessons(m.id).then(r => Array.isArray(r) ? r : (r.data || [])).catch(() => []),
+        lecciones: Array.isArray(m.lecciones) ? m.lecciones : await getModuleLessons(m.id).then(r => {
+          const all = Array.isArray(r) ? r : (r.data || []);
+          return all.filter(l => l.modulo_id === m.id);
+        }).catch(() => []),
       })));
     } catch (_) {}
   }
@@ -424,7 +427,7 @@ function renderInstructorAccordion(modules, slug, esInstructor, cursoId) {
 async function openAddModuloModal(cursoId, slug) {
   let nextOrden = 1;
   try {
-    const modsData = await api.get('/modulos?limit=9999');
+    const modsData = await getCourseModules(cursoId);
     const all = Array.isArray(modsData) ? modsData : (modsData.data || []);
     const cursoMods = all.filter(m => m.curso_id === cursoId);
     const maxOrden = cursoMods.reduce((max, m) => Math.max(max, m.orden || 0), 0);
