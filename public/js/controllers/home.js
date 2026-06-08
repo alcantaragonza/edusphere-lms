@@ -1,16 +1,18 @@
 /**
- * Home — Catálogo público.
+ * Home — Catálogo público con filtros y paginación.
  * Ruta: #/
  */
 import { state } from '../utils/state.js';
 import { createEl } from '../utils/dom.js';
-import { getCatalog } from '../api/cursos.js';
+import { getCatalog, getCategories } from '../api/cursos.js';
 import { cacheCourses } from '../utils/course-cache.js';
 import { Navbar } from '../components/Navbar.js';
 import { Footer } from '../components/Footer.js';
 import { CourseCard } from '../components/CourseCard.js';
 import { EmptyState } from '../components/EmptyState.js';
 import { Pagination } from '../components/Pagination.js';
+
+const PER_PAGE = 9;
 
 export async function homeController() {
   const app = document.getElementById('app');
@@ -21,15 +23,23 @@ export async function homeController() {
   app.appendChild(main);
   app.appendChild(Footer());
 
-  let cursos = [];
+  let todosCursos = [];
+  let categorias = [];
+  let currentPage = 1;
 
   try {
     const data = await getCatalog();
-    cursos = Array.isArray(data) ? data : (data.data || data.cursos || []);
-    cacheCourses(cursos);
-  } catch (_) {
-    // Fallback a demo si API falla
-  }
+    todosCursos = Array.isArray(data) ? data : (data.data || data.cursos || []);
+    cacheCourses(todosCursos);
+  } catch (_) {}
+
+  try {
+    const catData = await getCategories();
+    categorias = Array.isArray(catData) ? catData : (catData.data || []);
+  } catch (_) {}
+
+  const niveles = ['principiante', 'intermedio', 'avanzado'];
+  const nivelLabels = { principiante: 'Principiante', intermedio: 'Intermedio', avanzado: 'Avanzado' };
 
   main.innerHTML = `
     <section class="hero" style="background:var(--gradient-hero);padding:var(--space-20) 0 var(--space-16)">
@@ -59,6 +69,19 @@ export async function homeController() {
           </div>
         </div>
 
+        <div class="flex items-center gap-3" id="catalog-filters" style="margin-bottom:var(--space-6);flex-wrap:wrap">
+          <input type="text" id="filter-search" class="form-input" placeholder="Buscar cursos..." style="max-width:260px;font-size:var(--fs-body-sm)">
+          <select id="filter-category" class="form-input" style="max-width:200px;font-size:var(--fs-body-sm)">
+            <option value="">Todas las categorías</option>
+            ${categorias.map(cat => `<option value="${cat.id}">${cat.nombre}</option>`).join('')}
+          </select>
+          <select id="filter-level" class="form-input" style="max-width:180px;font-size:var(--fs-body-sm)">
+            <option value="">Todos los niveles</option>
+            ${niveles.map(n => `<option value="${n}">${nivelLabels[n]}</option>`).join('')}
+          </select>
+          <span class="text-muted" id="filter-count" style="font-size:var(--fs-body-sm)"></span>
+        </div>
+
         <div class="grid grid-3" id="catalog-grid"></div>
         <div id="catalog-pagination"></div>
       </div>
@@ -78,15 +101,51 @@ export async function homeController() {
   `;
 
   const grid = main.querySelector('#catalog-grid');
-  if (cursos.length === 0) {
-    grid.insertAdjacentElement('afterend', EmptyState({
-      icon: 'school',
-      title: 'No hay cursos aún',
-      description: '¡Vuelve pronto para ver nuevos cursos!',
-      action: '<a href="#/login?tab=register" class="btn btn-primary" style="margin-top:var(--space-4)">Crear Cuenta</a>'
-    }));
-  } else {
-    cursos.forEach(c => {
+  const paginationContainer = main.querySelector('#catalog-pagination');
+  const filterCount = main.querySelector('#filter-count');
+  const searchInput = main.querySelector('#filter-search');
+  const categorySelect = main.querySelector('#filter-category');
+  const levelSelect = main.querySelector('#filter-level');
+
+  function filterCourses() {
+    const search = searchInput.value.toLowerCase().trim();
+    const catId = categorySelect.value;
+    const level = levelSelect.value;
+
+    return todosCursos.filter(c => {
+      if (search && !(c.titulo || '').toLowerCase().includes(search)) return false;
+      if (catId && String(c.categoria_id) !== catId) return false;
+      if (level && c.nivel !== level) return false;
+      return true;
+    });
+  }
+
+  function renderPage(page) {
+    currentPage = page;
+    const filtered = filterCourses();
+    const totalPages = Math.ceil(filtered.length / PER_PAGE);
+    const start = (page - 1) * PER_PAGE;
+    const pageCourses = filtered.slice(start, start + PER_PAGE);
+
+    grid.innerHTML = '';
+    filterCount.textContent = `${filtered.length} curso${filtered.length !== 1 ? 's' : ''}`;
+
+    if (filtered.length === 0) {
+      grid.insertAdjacentElement('afterend', EmptyState({
+        icon: 'search_off',
+        title: 'Sin resultados',
+        description: 'Prueba con otros filtros o términos de búsqueda.'
+      }));
+      paginationContainer.textContent = '';
+      return;
+    }
+
+    const emptyEl = grid.nextElementSibling;
+    if (emptyEl && emptyEl.classList?.contains('empty-state')) {
+      emptyEl.remove();
+    }
+
+    pageCourses.forEach(c => {
       grid.appendChild(CourseCard({
         id: c.id, slug: c.slug, titulo: c.titulo,
         descripcion: c.descripcion_corta || c.descripcion,
@@ -98,5 +157,18 @@ export async function homeController() {
         imagen_url: c.imagen_portada_url || c.imagen_url
       }));
     });
+
+    paginationContainer.textContent = '';
+    paginationContainer.appendChild(Pagination({
+      currentPage: page,
+      totalPages,
+      onPageChange: renderPage,
+    }));
   }
+
+  searchInput.addEventListener('input', () => renderPage(1));
+  categorySelect.addEventListener('change', () => renderPage(1));
+  levelSelect.addEventListener('change', () => renderPage(1));
+
+  renderPage(1);
 }

@@ -4,6 +4,7 @@
  */
 import { state } from '../utils/state.js';
 import { createEl } from '../utils/dom.js';
+import { api } from '../api/client.js';
 import { Navbar } from '../components/Navbar.js';
 import { Footer } from '../components/Footer.js';
 import { showToast } from '../components/Toast.js';
@@ -67,9 +68,20 @@ export function perfilController() {
 
   const form = main.querySelector('#profile-form');
   if (form) {
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      showToast({ type: 'success', title: 'Guardado', message: 'Perfil actualizado correctamente.' });
+      const fd = new FormData(form);
+      const nombre = fd.get('nombre');
+      const userId = localStorage.getItem('edusphere_user_id');
+      if (!userId) return;
+      try {
+        await api.patch(`/usuarios/${userId}`, { nombre });
+        const current = state.user || {};
+        state.user = { ...current, nombre };
+        showToast({ type: 'success', title: 'Guardado', message: 'Perfil actualizado correctamente.' });
+      } catch (err) {
+        showToast({ type: 'error', title: 'Error', message: err.data?.error || 'No se pudo guardar.' });
+      }
     });
   }
 

@@ -8,6 +8,7 @@ import { formatPrice, formatNumber, slugify } from '../utils/formatters.js';
 import { getCourseById, getCourseModules, getModuleLessons, getCatalog } from '../api/cursos.js';
 import { getReviews } from '../api/resenas.js';
 import { addToCart } from '../api/carrito.js';
+import { enroll } from '../api/inscripciones.js';
 import { api } from '../api/client.js';
 import { getCourseBySlug } from '../utils/course-cache.js';
 import { Navbar } from '../components/Navbar.js';
@@ -160,7 +161,7 @@ export async function cursoDetalleController(params) {
                   }
                 </div>
                 ${state.isAuthenticated() && state.hasRole('estudiante') ? `
-                  <button class="btn btn-accent btn-lg" style="width:100%">Inscribirse Ahora</button>
+                  <button class="btn btn-accent btn-lg" id="btn-enroll" style="width:100%">Inscribirse Ahora</button>
                   <button class="btn btn-outline btn-lg" id="btn-cart" style="width:100%">
                     <span class="material-symbols-rounded">shopping_cart</span> Agregar al Carrito
                   </button>
@@ -219,6 +220,46 @@ export async function cursoDetalleController(params) {
           showToast({ type: 'error', title: 'Error', message: 'No se pudo agregar.' });
         }
       });
+    }
+
+    const btnEnroll = main.querySelector('#btn-enroll');
+    if (btnEnroll) {
+      btnEnroll.addEventListener('click', async () => {
+        try {
+          btnEnroll.disabled = true;
+          btnEnroll.textContent = 'Inscribiendo...';
+          await enroll(cursoId);
+          showToast({ type: 'success', title: 'Inscrito', message: `Te inscribiste a ${c.titulo}.` });
+          window.location.hash = '#/mis-cursos';
+        } catch (err) {
+          btnEnroll.disabled = false;
+          btnEnroll.textContent = 'Inscribirse Ahora';
+          showToast({ type: 'error', title: 'Error', message: err.data?.error || 'No se pudo inscribir.' });
+        }
+      });
+    }
+
+    if (!esInstructor) {
+      try {
+        const reviewsData = await getReviews(cursoId);
+        const reviews = Array.isArray(reviewsData) ? reviewsData : (reviewsData.data || []);
+        const reviewsSection = main.querySelector('#reviews-section');
+        if (reviewsSection && reviews.length > 0) {
+          reviewsSection.innerHTML = reviews.map(r => `
+            <div class="card" style="margin-bottom:var(--space-4);padding:var(--space-5)">
+              <div class="flex items-center gap-3" style="margin-bottom:var(--space-3)">
+                <span class="navbar-avatar" style="width:2.5rem;height:2.5rem;font-size:0.9rem">${(r.estudiante || 'E')[0].toUpperCase()}</span>
+                <div>
+                  <p class="fw-semibold" style="font-size:var(--fs-body-sm)">${r.estudiante || 'Estudiante'}</p>
+                  <p class="text-muted" style="font-size:var(--fs-body-xs)">${r.fecha_resena ? new Date(r.fecha_resena).toLocaleDateString('es') : ''}</p>
+                </div>
+                ${typeof r.calificacion_promedio === 'number' ? StarRatingDisplay({ value: r.calificacion_promedio }).outerHTML : ''}
+              </div>
+              <p style="font-size:var(--fs-body-sm);line-height:var(--lh-relaxed)">${r.comentario || r.texto || ''}</p>
+            </div>
+          `).join('');
+        }
+      } catch (_) {}
     }
 
   } catch (err) {
