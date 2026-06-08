@@ -6,6 +6,7 @@ require('dotenv').config();
 
 const app = require('./src/app');
 const { pool } = require('./src/config/db');
+const { conectarMongo, desconectarMongo } = require('./src/config/mongo');
 
 // Aviso temprano si falta configuración crítica de auth.
 if (!process.env.JWT_SECRET) {
@@ -14,18 +15,21 @@ if (!process.env.JWT_SECRET) {
 
 const PORT = Number(process.env.PORT) || 3000;
 
+// Conecta a MongoDB (no bloquea el arranque: si falla, solo las rutas Mongo
+// responderán error). Las rutas de PostgreSQL funcionan igual.
+conectarMongo();
+
 const server = app.listen(PORT, () => {
   console.log(`[EduSphere] API escuchando en http://localhost:${PORT}/api`);
 });
 
-// Apagado ordenado: cierra el server y el pool de pg.
+// Apagado ordenado: cierra el server, el pool de pg y la conexión de Mongo.
 function apagar(signal) {
   console.log(`\n[EduSphere] ${signal} recibido, cerrando...`);
-  server.close(() => {
-    pool.end().then(() => {
-      console.log('[EduSphere] recursos liberados. Adiós.');
-      process.exit(0);
-    });
+  server.close(async () => {
+    await Promise.allSettled([pool.end(), desconectarMongo()]);
+    console.log('[EduSphere] recursos liberados. Adiós.');
+    process.exit(0);
   });
 }
 
