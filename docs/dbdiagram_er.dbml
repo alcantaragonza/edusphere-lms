@@ -1,0 +1,380 @@
+// EduSphere LMS — Diagrama Entidad-Relación PostgreSQL
+// Copiar y pegar en https://dbdiagram.io
+// Proyecto: EduSphere LMS
+
+Enum rol_usuario {
+  instructor
+  estudiante
+  admin
+}
+
+Enum estado_curso_e {
+  borrador
+  publicado
+  archivado
+}
+
+Enum nivel_curso_e {
+  principiante
+  intermedio
+  avanzado
+}
+
+Enum tipo_leccion_e {
+  video
+  lectura
+  cuestionario
+  descarga
+}
+
+Enum estado_inscripcion_e {
+  activo
+  completado
+  cancelado
+}
+
+Enum estado_liquidacion_e {
+  pendiente
+  pagada
+  cancelada
+}
+
+Enum metodo_pago_e {
+  tarjeta
+  transferencia
+}
+
+Enum estado_pago_e {
+  pendiente
+  completado
+  fallido
+}
+
+Enum tipo_pregunta_e {
+  opcion_multiple
+  verdadero_falso
+  respuesta_abierta
+}
+
+// ─── Tablas ─────────────────────────────────────────────────────
+
+Table usuarios {
+  id uuid [pk, default: `gen_random_uuid()`, note: "PK autogenerada"]
+  nombre varchar(200) [not null]
+  apellido varchar(200) [not null]
+  email varchar(255) [not null, unique]
+  password_hash varchar(255) [note: "Hash bcrypt de la contraseña"]
+  telefono varchar(20)
+  fecha_nacimiento date
+  rol rol_usuario [not null]
+  modificado_por uuid [note: "FK auto-referenciada → usuarios.id"]
+  fecha_registro timestamptz [not null, default: `now()`]
+  fecha_modificacion timestamptz [not null, default: `now()`]
+  
+  Indexes {
+    email [unique, name: "usuarios_email_key"]
+    rol [name: "idx_usuarios_rol"]
+    (modificado_por) [name: "fk_usuarios_modificado_por"]
+  }
+}
+
+Table instructores {
+  id smallserial [pk]
+  usuario_id uuid [not null, unique, ref: > usuarios.id, note: "1:1 con usuarios — ON DELETE CASCADE"]
+  biografia text
+  anos_experiencia smallint
+  metodo_pago varchar(50)
+  referencia_pago varchar(255)
+  calificacion_promedio numeric(3,2) [default: 0.00]
+  total_estudiantes integer [default: 0]
+  total_cursos integer [default: 0]
+  fecha_creacion timestamptz [not null, default: `now()`]
+  fecha_modificacion timestamptz [not null, default: `now()`]
+  
+  Indexes {
+    usuario_id [unique]
+  }
+}
+
+Table estudiantes {
+  id uuid [pk, default: `gen_random_uuid()`]
+  usuario_id uuid [not null, unique, ref: > usuarios.id, note: "1:1 con usuarios — ON DELETE CASCADE"]
+  fecha_nacimiento date
+  ocupacion varchar(100)
+  nivel_educativo varchar(100)
+  intereses text
+  total_cursos integer [default: 0, note: "Desnormalizado: contador de cursos inscritos"]
+  total_certificados integer [default: 0, note: "Desnormalizado: contador de certificados"]
+  fecha_creacion timestamptz [not null, default: `now()`]
+  fecha_modificacion timestamptz [not null, default: `now()`]
+  
+  Indexes {
+    usuario_id [unique]
+  }
+}
+
+Table categorias {
+  id smallserial [pk]
+  nombre varchar(100) [not null]
+  slug varchar(100) [not null, unique]
+  descripcion text
+  icono_url varchar(500)
+  color_hex char(7) [note: "Formato #RRGGBB"]
+  activa boolean [not null, default: true]
+  fecha_creacion timestamptz [not null, default: `now()`]
+  fecha_modificacion timestamptz [not null, default: `now()`]
+  
+  Indexes {
+    slug [unique]
+  }
+}
+
+Table cursos {
+  id uuid [pk, default: `gen_random_uuid()`]
+  instructor_id smallint [not null, ref: > instructores.id, note: "ON DELETE CASCADE"]
+  categoria_id smallint [not null, ref: > categorias.id, note: "ON DELETE SET NULL"]
+  estado estado_curso_e [not null, default: `borrador`]
+  categoria estado_curso_e [not null, default: `borrador`, note: "Columna duplicada: sincronizada por trigger trg_sync_categoria_estado"]
+  nivel nivel_curso_e [not null, default: `principiante`]
+  slug varchar(100) [not null, unique]
+  titulo varchar(200) [not null]
+  descripcion text
+  idioma varchar(50)
+  imagen_portada_url varchar(500)
+  precio numeric(10,2) [not null, default: 0.00]
+  precio_descuento numeric(10,2) [note: "CHECK: IS NULL OR (>= 0 AND < precio)"]
+  duracion_horas numeric(5,2)
+  calificacion_promedio numeric(3,2) [default: 0.00, note: "CHECK: >= 0 AND <= 5"]
+  total_estudiantes integer [default: 0, note: "Desnormalizado: actualizado por SP"]
+  permite_certificado boolean [not null, default: false]
+  fecha_publicacion timestamptz
+  fecha_creacion timestamptz [not null, default: `now()`]
+  fecha_modificacion timestamptz [not null, default: `now()`]
+  
+  Indexes {
+    slug [unique]
+    instructor_id [name: "idx_cursos_instructor_id"]
+    categoria_id [name: "idx_cursos_categoria_id"]
+    estado [name: "idx_cursos_estado"]
+    total_estudiantes [name: "idx_cursos_total_estudiantes"]
+  }
+}
+
+Table modulos {
+  id uuid [pk, default: `gen_random_uuid()`]
+  curso_id uuid [not null, ref: > cursos.id, note: "ON DELETE CASCADE"]
+  titulo varchar(200) [not null]
+  descripcion text
+  orden smallint [not null, default: 1]
+  duracion_total_min integer [default: 0]
+  total_lecciones smallint [default: 0]
+  es_gratuito boolean [not null, default: false]
+  fecha_creacion timestamptz [not null, default: `now()`]
+  fecha_modificacion timestamptz [not null, default: `now()`]
+  
+  Indexes {
+    (curso_id, orden) [unique, name: "modulos_curso_id_orden_key"]
+    curso_id [name: "idx_modulos_curso_id"]
+  }
+}
+
+Table lecciones {
+  id uuid [pk, default: `gen_random_uuid()`]
+  modulo_id uuid [not null, ref: > modulos.id, note: "ON DELETE CASCADE"]
+  tipo tipo_leccion_e [not null]
+  titulo varchar(200) [not null]
+  descripcion text
+  contenido_url varchar(500)
+  contenido_texto text
+  duracion_minutos smallint [not null, default: 0]
+  orden smallint [not null, default: 1]
+  permite_descarga boolean [not null, default: false]
+  fecha_creacion timestamptz [not null, default: `now()`]
+  fecha_modificacion timestamptz [not null, default: `now()`]
+  
+  Indexes {
+    (modulo_id, orden) [unique, name: "lecciones_modulo_id_orden_key"]
+    modulo_id [name: "idx_lecciones_modulo_id"]
+  }
+}
+
+Table preguntas {
+  id uuid [pk, default: `gen_random_uuid()`]
+  leccion_id uuid [not null, ref: > lecciones.id, note: "ON DELETE CASCADE"]
+  texto text [not null]
+  tipo tipo_pregunta_e [not null]
+  opciones jsonb [note: "Array de opciones para opcion_multiple"]
+  respuesta_correcta text [not null]
+  puntos smallint [not null, default: 1]
+  orden smallint [not null]
+  fecha_creacion timestamptz [not null, default: `now()`]
+  fecha_modificacion timestamptz [not null, default: `now()`]
+  
+  Indexes {
+    (leccion_id, orden) [unique, name: "preguntas_leccion_id_orden_key"]
+    leccion_id [name: "idx_preguntas_leccion_id"]
+  }
+}
+
+Table inscripciones {
+  id uuid [pk, default: `gen_random_uuid()`]
+  estudiante_id uuid [not null, ref: > estudiantes.id, note: "ON DELETE CASCADE"]
+  curso_id uuid [not null, ref: > cursos.id, note: "ON DELETE CASCADE"]
+  estado estado_inscripcion_e [not null, default: `activo`]
+  monto_pagado numeric(10,2) [not null, default: 0.00]
+  tasa_comision_aplicada numeric(5,2) [not null, default: 0.00, note: "30% por defecto"]
+  fecha_inscripcion timestamptz [not null, default: `now()`]
+  calificacion_final numeric(3,2) [note: "CHECK: >= 0 AND <= 5"]
+  certificado_obtenido boolean [not null, default: false]
+  fecha_modificacion timestamptz [not null, default: `now()`]
+  
+  Indexes {
+    (estudiante_id, curso_id) [unique, name: "inscripciones_estudiante_id_curso_id_key"]
+    estudiante_id [name: "idx_inscripciones_estudiante_id"]
+    curso_id [name: "idx_inscripciones_curso_id"]
+    estado [name: "idx_inscripciones_estado"]
+    fecha_inscripcion [name: "idx_inscripciones_fecha"]
+    (curso_id, estado) [name: "idx_inscripciones_curso_estado"]
+  }
+}
+
+Table pagos {
+  id uuid [pk, default: `gen_random_uuid()`]
+  inscripcion_id uuid [not null, unique, ref: > inscripciones.id, note: "1:1 — ON DELETE CASCADE"]
+  monto numeric(10,2) [not null]
+  metodo_pago metodo_pago_e [not null]
+  referencia_pago varchar(255)
+  proveedor_pago varchar(100)
+  detalles_pago jsonb [note: "JSON con curso, plataforma, tasa, comision"]
+  estado estado_pago_e [not null, default: `pendiente`]
+  fecha_pago timestamptz [not null, default: `now()`]
+  fecha_modificacion timestamptz [not null, default: `now()`]
+  
+  Indexes {
+    inscripcion_id [unique]
+    estado [name: "idx_pagos_estado"]
+    fecha_pago [name: "idx_pagos_fecha_pago"]
+    (estado, fecha_pago) [name: "idx_pagos_estado_fecha"]
+  }
+}
+
+Table certificados {
+  id uuid [pk, default: `gen_random_uuid()`]
+  inscripcion_id uuid [not null, unique, ref: > inscripciones.id, note: "1:1 — ON DELETE CASCADE"]
+  codigo_certificado varchar(100) [not null, unique]
+  url_certificado varchar(500) [not null]
+  fecha_emision timestamptz [not null, default: `now()`]
+  fecha_modificacion timestamptz [not null, default: `now()`]
+  activo boolean [not null, default: true]
+  
+  Indexes {
+    inscripcion_id [unique]
+    codigo_certificado [unique]
+    (activo, fecha_emision) [name: "idx_certificados_activo_fecha"]
+  }
+}
+
+Table liquidaciones_instructor {
+  id uuid [pk, default: `gen_random_uuid()`]
+  instructor_id smallint [not null, ref: > instructores.id, note: "ON DELETE CASCADE"]
+  estado estado_liquidacion_e [not null, default: `pendiente`]
+  monto_total numeric(10,2) [not null, note: "CHECK: >= 0"]
+  tasa_comision_aplicada numeric(5,2) [not null]
+  total_inscripciones integer [not null, default: 0]
+  total_bruto numeric(10,2) [not null]
+  total_neto numeric(10,2) [not null]
+  detalles_liquidacion jsonb
+  fecha_liquidacion timestamptz [not null, default: `now()`]
+  fecha_modificacion timestamptz [not null, default: `now()`]
+  
+  Indexes {
+    instructor_id [name: "idx_liquidaciones_instructor_id"]
+    fecha_liquidacion [name: "idx_liquidaciones_fecha"]
+  }
+}
+
+Table liquidaciones_detalle {
+  liquidacion_id uuid [pk, ref: > liquidaciones_instructor.id, note: "ON DELETE CASCADE"]
+  inscripcion_id uuid [pk, ref: > inscripciones.id, note: "ON DELETE CASCADE"]
+  monto_bruto numeric(10,2) [not null, note: "CHECK: >= 0"]
+  monto_comision numeric(10,2) [not null, note: "CHECK: >= 0"]
+  monto_neto numeric(10,2) [not null]
+  fecha_modificacion timestamptz [not null, default: `now()`]
+  fecha_creacion timestamptz [not null, default: `now()`]
+  
+  Indexes {
+    (liquidacion_id, inscripcion_id) [pk]
+    inscripcion_id [name: "idx_liquidaciones_detalle_inscripcion"]
+  }
+}
+
+Table carrito_compras {
+  id uuid [pk, default: `gen_random_uuid()`]
+  estudiante_id uuid [not null, ref: > estudiantes.id, note: "ON DELETE CASCADE"]
+  curso_id uuid [not null, ref: > cursos.id, note: "ON DELETE CASCADE"]
+  precio_snapshot numeric(10,2) [not null, note: "Precio capturado al agregar al carrito"]
+  fecha_creacion timestamptz [not null, default: `now()`]
+  fecha_modificacion timestamptz [not null, default: `now()`]
+  
+  Indexes {
+    (estudiante_id, curso_id) [unique]
+    estudiante_id [name: "idx_carrito_estudiante_id"]
+    curso_id [name: "idx_carrito_curso_id"]
+  }
+}
+
+Table tipos_operacion_auditoria {
+  id smallserial [pk]
+  nombre varchar(100) [not null, unique]
+  descripcion text
+  fecha_creacion timestamptz [not null, default: `now()`]
+  fecha_modificacion timestamptz [not null, default: `now()`]
+}
+
+Table log_auditoria {
+  id uuid [pk, default: `gen_random_uuid()`]
+  usuario_id uuid [not null, ref: > usuarios.id, note: "ON DELETE CASCADE"]
+  tipo_operacion_id smallint [not null, ref: > tipos_operacion_auditoria.id, note: "ON DELETE CASCADE"]
+  entidad_afectada varchar(100) [not null]
+  entidad_id uuid
+  detalles_operacion jsonb [note: "JSON con contexto de la operación"]
+  fecha_operacion timestamptz [not null, default: `now()`]
+  
+  Indexes {
+    (usuario_id, fecha_operacion) [name: "idx_log_usuario_fecha"]
+    tipo_operacion_id [name: "idx_log_tipo_operacion"]
+    (entidad_afectada, entidad_id) [name: "idx_log_entidad"]
+    detalles_operacion [name: "idx_log_detalles_gin", type: GIN]
+  }
+}
+
+Table configuracion_plataforma {
+  id smallserial [pk]
+  clave varchar(80) [not null, unique]
+  valor varchar(255) [not null]
+  descripcion text
+  modificado_por uuid [not null, ref: > usuarios.id]
+  fecha_modificacion timestamptz [not null, default: `now()`]
+}
+
+// ─── Relaciones ─────────────────────────────────────────────────
+// dbdiagram.io infiere las relaciones de los ref: arriba.
+// Se documentan explícitamente aquí:
+
+// usuarios 1──1 instructores (usuario_id)
+// usuarios 1──1 estudiantes (usuario_id)
+// instructores 1──N cursos (instructor_id)
+// categorias 1──N cursos (categoria_id)
+// cursos 1──N modulos (curso_id)
+// modulos 1──N lecciones (modulo_id)
+// lecciones 1──N preguntas (leccion_id)
+// estudiantes 1──N inscripciones (estudiante_id)
+// cursos 1──N inscripciones (curso_id)
+// inscripciones 1──1 pagos (inscripcion_id)
+// inscripciones 1──1 certificados (inscripcion_id)
+// instructores 1──N liquidaciones_instructor
+// liquidaciones_instructor 1──N liquidaciones_detalle
+// inscripciones 1──N liquidaciones_detalle
+// usuarios 1──N log_auditoria (usuario_id)
+// tipos_operacion_auditoria 1──N log_auditoria
+// usuarios 1──N usuarios (modificado_por — auto-referencia)
