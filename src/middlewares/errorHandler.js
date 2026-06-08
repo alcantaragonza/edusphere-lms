@@ -33,6 +33,24 @@ function mapearErrorPg(err) {
   }
 }
 
+// Traduce errores de mongoose (MongoDB) a respuestas HTTP legibles.
+function mapearErrorMongo(err) {
+  // Validación del schema (campos requeridos, min/max, enum, etc.).
+  if (err.name === 'ValidationError') {
+    const detalle = Object.values(err.errors || {}).map((e) => e.message);
+    return { status: 400, error: 'Datos de entrada inválidos', detalle };
+  }
+  // Cast fallido (ej. un id/UUID mal formado para el tipo del campo).
+  if (err.name === 'CastError') {
+    return { status: 400, error: 'Formato de dato inválido', detalle: `Campo '${err.path}': ${err.message}` };
+  }
+  // Índice único violado (ej. una segunda reseña para la misma inscripción).
+  if (err.name === 'MongoServerError' && err.code === 11000) {
+    return { status: 409, error: 'Conflicto: el registro ya existe', detalle: err.keyValue || err.message };
+  }
+  return null;
+}
+
 // eslint-disable-next-line no-unused-vars  (Express exige los 4 parámetros)
 function errorHandler(err, req, res, next) {
   // 1) Errores de validación manual.
@@ -40,6 +58,15 @@ function errorHandler(err, req, res, next) {
     return res.status(err.status || 400).json({
       error: err.message || 'Datos de entrada inválidos',
       detalle: err.detalle || null,
+    });
+  }
+
+  // 1.b) Errores de mongoose/MongoDB.
+  const mongoMapeado = mapearErrorMongo(err);
+  if (mongoMapeado) {
+    return res.status(mongoMapeado.status).json({
+      error: mongoMapeado.error,
+      detalle: mongoMapeado.detalle,
     });
   }
 

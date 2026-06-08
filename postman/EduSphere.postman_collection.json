@@ -2,7 +2,7 @@
   "info": {
     "name": "EduSphere LMS API",
     "_postman_id": "edusphere-lms-api-collection",
-    "description": "Colección completa de la API de EduSphere LMS (Express 5 + PostgreSQL).\n\nConfigura la variable {{baseUrl}} (por defecto http://localhost:3000/api).\n\nAUTENTICACIÓN: la colección usa Bearer Token {{token}} a nivel de colección. Ejecuta primero 'Autenticación → POST login' (o registro): un script guarda el token automáticamente en la variable {{token}}, y los demás requests lo enviarán solos.\n\nLas variables de id ({{usuarioId}}, {{cursoId}}, etc.) puedes irlas rellenando con los ids que devuelven los POST.\n\nLos reportes y las operaciones críticas (inscripciones/certificados) dependen de objetos de BD (vistas, funciones y stored procedures) que implementa el equipo de base de datos.",
+    "description": "Colección completa de la API de EduSphere LMS (Express 5 + PostgreSQL + MongoDB).\n\nConfigura la variable {{baseUrl}} (por defecto http://localhost:3000/api).\n\nAUTENTICACIÓN: la colección usa Bearer Token {{token}} a nivel de colección. Ejecuta primero 'Autenticación → POST login' (o registro): un script guarda el token automáticamente en la variable {{token}}, y los demás requests lo enviarán solos.\n\nLas variables de id ({{usuarioId}}, {{cursoId}}, etc.) puedes irlas rellenando con los ids que devuelven los POST.\n\nCOLECCIONES MONGO (Progreso de lecciones, Logs de actividad, Reseñas, Cuestionarios y Foros): los _id de Mongo (ObjectId) que devuelve cada POST se guardan solos en {{progresoId}}, {{logId}}, {{resenaId}}, {{cuestionarioId}} y {{foroId}} mediante un script. Los UUID de las FKs usan {{$guid}} (genera un UUID v4 válido en cada envío); el tipo UUID de Mongo rechaza UUIDs no conformes (p. ej. 0000...). Leer 'Logs de actividad' requiere rol admin.\n\nLos reportes y las operaciones críticas (inscripciones/certificados) dependen de objetos de BD (vistas, funciones y stored procedures) que implementa el equipo de base de datos.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -19,7 +19,12 @@
     { "key": "cursoId", "value": "00000000-0000-0000-0000-000000000000" },
     { "key": "moduloId", "value": "00000000-0000-0000-0000-000000000000" },
     { "key": "leccionId", "value": "00000000-0000-0000-0000-000000000000" },
-    { "key": "inscripcionId", "value": "00000000-0000-0000-0000-000000000000" }
+    { "key": "inscripcionId", "value": "00000000-0000-0000-0000-000000000000" },
+    { "key": "progresoId", "value": "" },
+    { "key": "logId", "value": "" },
+    { "key": "resenaId", "value": "" },
+    { "key": "cuestionarioId", "value": "" },
+    { "key": "foroId", "value": "" }
   ],
   "item": [
     {
@@ -570,6 +575,360 @@
             "method": "GET",
             "header": [],
             "url": { "raw": "{{baseUrl}}/reportes/tasa-finalizacion", "host": ["{{baseUrl}}"], "path": ["reportes", "tasa-finalizacion"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Progreso de lecciones (Mongo)",
+      "item": [
+        {
+          "name": "POST crear progreso",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Guarda el _id de Mongo del documento creado en {{progresoId}}.",
+                  "var d = pm.response.json();",
+                  "if (d && d._id) { pm.collectionVariables.set('progresoId', d._id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inscripcion_id\": \"{{$guid}}\",\n  \"curso_id\": \"{{$guid}}\",\n  \"estudiante_id\": \"{{$guid}}\",\n  \"progreso_lecciones\": [\n    {\n      \"leccion_id\": \"{{$guid}}\",\n      \"completada\": false,\n      \"porcentaje_visto\": 40,\n      \"tiempo_dedicado_seg\": 300,\n      \"fecha_inicio\": \"2026-06-01T10:00:00Z\"\n    }\n  ],\n  \"porcentaje_total\": 20,\n  \"fecha_ultima_actividad\": \"2026-06-01T10:05:00Z\",\n  \"fecha_inscripcion\": \"2026-05-30T09:00:00Z\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/progreso-lecciones", "host": ["{{baseUrl}}"], "path": ["progreso-lecciones"] }
+          }
+        },
+        {
+          "name": "GET lista progreso",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/progreso-lecciones?limit=50&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["progreso-lecciones"],
+              "query": [{ "key": "limit", "value": "50" }, { "key": "offset", "value": "0" }]
+            }
+          }
+        },
+        {
+          "name": "GET progreso por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/progreso-lecciones/{{progresoId}}", "host": ["{{baseUrl}}"], "path": ["progreso-lecciones", "{{progresoId}}"] }
+          }
+        },
+        {
+          "name": "PATCH actualizar progreso",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"porcentaje_total\": 55\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/progreso-lecciones/{{progresoId}}", "host": ["{{baseUrl}}"], "path": ["progreso-lecciones", "{{progresoId}}"] }
+          }
+        },
+        {
+          "name": "DELETE progreso",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/progreso-lecciones/{{progresoId}}", "host": ["{{baseUrl}}"], "path": ["progreso-lecciones", "{{progresoId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Logs de actividad (Mongo)",
+      "item": [
+        {
+          "name": "POST crear log",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Guarda el _id de Mongo del documento creado en {{logId}}.",
+                  "var d = pm.response.json();",
+                  "if (d && d._id) { pm.collectionVariables.set('logId', d._id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario_id\": \"{{$guid}}\",\n  \"tipo_evento\": \"login\",\n  \"metadata\": {\n    \"ip_origen\": \"192.168.0.10\",\n    \"user_agent\": \"PostmanRuntime\"\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/logs-actividad", "host": ["{{baseUrl}}"], "path": ["logs-actividad"] }
+          }
+        },
+        {
+          "name": "GET lista logs (solo admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logs-actividad?limit=50&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["logs-actividad"],
+              "query": [{ "key": "limit", "value": "50" }, { "key": "offset", "value": "0" }]
+            }
+          }
+        },
+        {
+          "name": "GET log por id (solo admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/logs-actividad/{{logId}}", "host": ["{{baseUrl}}"], "path": ["logs-actividad", "{{logId}}"] }
+          }
+        },
+        {
+          "name": "PATCH actualizar log",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo_evento\": \"logout\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/logs-actividad/{{logId}}", "host": ["{{baseUrl}}"], "path": ["logs-actividad", "{{logId}}"] }
+          }
+        },
+        {
+          "name": "DELETE log",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/logs-actividad/{{logId}}", "host": ["{{baseUrl}}"], "path": ["logs-actividad", "{{logId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reseñas (Mongo)",
+      "item": [
+        {
+          "name": "POST crear reseña",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// El promedio lo calcula la API a partir de las 5 calificaciones.",
+                  "var d = pm.response.json();",
+                  "if (d && d._id) { pm.collectionVariables.set('resenaId', d._id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inscripcion_id\": \"{{$guid}}\",\n  \"curso_id\": \"{{$guid}}\",\n  \"estudiante_id\": \"{{$guid}}\",\n  \"instructor_id\": \"{{$guid}}\",\n  \"calif_contenido\": 5,\n  \"calif_claridad\": 4,\n  \"calif_dificultad\": 4,\n  \"calif_valor\": 5,\n  \"calif_instructor\": 4,\n  \"comentario\": \"Excelente curso, muy claro.\",\n  \"titulo_resena\": \"Muy recomendado\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/resenas", "host": ["{{baseUrl}}"], "path": ["resenas"] }
+          }
+        },
+        {
+          "name": "GET lista reseñas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/resenas?limit=50&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["resenas"],
+              "query": [{ "key": "limit", "value": "50" }, { "key": "offset", "value": "0" }]
+            }
+          }
+        },
+        {
+          "name": "GET reseña por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/resenas/{{resenaId}}", "host": ["{{baseUrl}}"], "path": ["resenas", "{{resenaId}}"] }
+          }
+        },
+        {
+          "name": "PATCH actualizar reseña",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comentario\": \"Comentario actualizado.\",\n  \"editada\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/resenas/{{resenaId}}", "host": ["{{baseUrl}}"], "path": ["resenas", "{{resenaId}}"] }
+          }
+        },
+        {
+          "name": "DELETE reseña",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/resenas/{{resenaId}}", "host": ["{{baseUrl}}"], "path": ["resenas", "{{resenaId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cuestionarios respuestas (Mongo)",
+      "item": [
+        {
+          "name": "POST crear intento",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var d = pm.response.json();",
+                  "if (d && d._id) { pm.collectionVariables.set('cuestionarioId', d._id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estudiante_id\": \"{{$guid}}\",\n  \"leccion_id\": \"{{$guid}}\",\n  \"preguntas_respuestas\": [\n    { \"pregunta_id\": \"{{$guid}}\", \"respuesta\": \"B\", \"correcta\": true },\n    { \"pregunta_id\": \"{{$guid}}\", \"respuesta\": \"A\", \"correcta\": false }\n  ],\n  \"calificacion\": 50,\n  \"puntaje_total\": 1,\n  \"tiempo_total_seg\": 120,\n  \"intento_numero\": 1\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/cuestionarios-respuestas", "host": ["{{baseUrl}}"], "path": ["cuestionarios-respuestas"] }
+          }
+        },
+        {
+          "name": "GET lista intentos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/cuestionarios-respuestas?limit=50&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["cuestionarios-respuestas"],
+              "query": [{ "key": "limit", "value": "50" }, { "key": "offset", "value": "0" }]
+            }
+          }
+        },
+        {
+          "name": "GET intento por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/cuestionarios-respuestas/{{cuestionarioId}}", "host": ["{{baseUrl}}"], "path": ["cuestionarios-respuestas", "{{cuestionarioId}}"] }
+          }
+        },
+        {
+          "name": "PATCH actualizar intento",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"calificacion\": 100,\n  \"puntaje_total\": 2\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/cuestionarios-respuestas/{{cuestionarioId}}", "host": ["{{baseUrl}}"], "path": ["cuestionarios-respuestas", "{{cuestionarioId}}"] }
+          }
+        },
+        {
+          "name": "DELETE intento",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/cuestionarios-respuestas/{{cuestionarioId}}", "host": ["{{baseUrl}}"], "path": ["cuestionarios-respuestas", "{{cuestionarioId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Foros (Mongo)",
+      "item": [
+        {
+          "name": "POST crear hilo raíz",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// parent_id null y profundidad 0 los pone la API por defecto.",
+                  "var d = pm.response.json();",
+                  "if (d && d._id) { pm.collectionVariables.set('foroId', d._id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"curso_id\": \"{{$guid}}\",\n  \"estudiante_id\": \"{{$guid}}\",\n  \"titulo\": \"¿Cómo configurar el Pool?\",\n  \"contenido\": \"Tengo dudas sobre el tamaño del pool de conexiones.\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/foros", "host": ["{{baseUrl}}"], "path": ["foros"] }
+          }
+        },
+        {
+          "name": "GET lista publicaciones",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/foros?limit=50&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["foros"],
+              "query": [{ "key": "limit", "value": "50" }, { "key": "offset", "value": "0" }]
+            }
+          }
+        },
+        {
+          "name": "GET publicación por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/foros/{{foroId}}", "host": ["{{baseUrl}}"], "path": ["foros", "{{foroId}}"] }
+          }
+        },
+        {
+          "name": "PATCH actualizar publicación",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contenido\": \"Edito mi pregunta para aclararla.\",\n  \"editado\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/foros/{{foroId}}", "host": ["{{baseUrl}}"], "path": ["foros", "{{foroId}}"] }
+          }
+        },
+        {
+          "name": "DELETE publicación",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/foros/{{foroId}}", "host": ["{{baseUrl}}"], "path": ["foros", "{{foroId}}"] }
           }
         }
       ]

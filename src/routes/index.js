@@ -26,4 +26,11 @@ router.use('/', require('./operaciones.routes'));
 // Reportes globales (vistas/materializadas).
 router.use('/reportes', require('./reportes.routes'));
 
+// Colecciones MongoDB (mongoose).
+router.use('/progreso-lecciones', require('./progresoLecciones.routes'));
+router.use('/logs-actividad', require('./logsActividad.routes'));
+router.use('/resenas', require('./resenas.routes'));
+router.use('/cuestionarios-respuestas', require('./cuestionariosRespuestas.routes'));
+router.use('/foros', require('./foros.routes'));
+
 module.exports = router;
