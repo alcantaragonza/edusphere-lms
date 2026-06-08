@@ -174,6 +174,20 @@ export async function cursoDetalleController(params) {
             <div class="card-body" style="display:flex;flex-direction:column;gap:var(--space-4)">
               ${esInstructor ? `
                 <span class="tag tag-primary" style="align-self:flex-start">Eres el instructor</span>
+                ${c.estado !== 'publicado' ? `
+                  <button class="btn btn-accent btn-lg" id="btn-publicar" style="width:100%">
+                    <span class="material-symbols-rounded">publish</span> Publicar Curso
+                  </button>
+                ` : `
+                  <button class="btn btn-outline btn-lg" id="btn-despublicar" style="width:100%">
+                    <span class="material-symbols-rounded">unpublished</span> Despublicar
+                  </button>
+                `}
+                ${c.estado === 'archivado' ? `
+                  <button class="btn btn-outline btn-lg" id="btn-reactivar" style="width:100%">
+                    <span class="material-symbols-rounded">restore</span> Reactivar
+                  </button>
+                ` : ''}
                 <button class="btn btn-primary btn-lg" id="btn-add-modulo" style="width:100%">
                   <span class="material-symbols-rounded">playlist_add</span> Agregar Módulo
                 </button>
@@ -236,6 +250,45 @@ export async function cursoDetalleController(params) {
     const btnAddModulo = main.querySelector('#btn-add-modulo');
     if (btnAddModulo) {
       btnAddModulo.addEventListener('click', () => openAddModuloModal(cursoId, slug));
+    }
+
+    const btnPublicar = main.querySelector('#btn-publicar');
+    if (btnPublicar) {
+      btnPublicar.addEventListener('click', async () => {
+        try {
+          await api.patch(`/cursos/${cursoId}`, { estado: 'publicado' });
+          showToast({ type: 'success', title: 'Publicado', message: 'El curso ya es visible en el catálogo.' });
+          window.location.reload();
+        } catch (err) {
+          showToast({ type: 'error', title: 'Error', message: err.data?.error || 'No se pudo publicar.' });
+        }
+      });
+    }
+
+    const btnDespublicar = main.querySelector('#btn-despublicar');
+    if (btnDespublicar) {
+      btnDespublicar.addEventListener('click', async () => {
+        try {
+          await api.patch(`/cursos/${cursoId}`, { estado: 'borrador' });
+          showToast({ type: 'success', title: 'Despublicado', message: 'El curso ya no aparece en el catálogo.' });
+          window.location.reload();
+        } catch (err) {
+          showToast({ type: 'error', title: 'Error', message: err.data?.error || 'No se pudo despublicar.' });
+        }
+      });
+    }
+
+    const btnReactivar = main.querySelector('#btn-reactivar');
+    if (btnReactivar) {
+      btnReactivar.addEventListener('click', async () => {
+        try {
+          await api.patch(`/cursos/${cursoId}`, { estado: 'borrador' });
+          showToast({ type: 'success', title: 'Reactivado', message: 'El curso está en borrador nuevamente.' });
+          window.location.reload();
+        } catch (err) {
+          showToast({ type: 'error', title: 'Error', message: err.data?.error || 'No se pudo reactivar.' });
+        }
+      });
     }
 
     // Botón carrito (estudiante)
