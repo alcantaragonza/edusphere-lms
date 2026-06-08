@@ -400,7 +400,7 @@ function renderInstructorAccordion(modules, slug, esInstructor, cursoId) {
       addLessonBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         const count = parseInt(addLessonBtn.dataset.lessonCount) || 0;
-        openAddLessonModal(addLessonBtn.dataset.addLesson, slug, count);
+        openAddLessonModal(addLessonBtn.dataset.addLesson, slug, count + 1);
       });
     }
 
