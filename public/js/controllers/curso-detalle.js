@@ -8,7 +8,6 @@ import { formatPrice, formatNumber, slugify } from '../utils/formatters.js';
 import { getCourseById, getCourseModules, getModuleLessons, getCatalog } from '../api/cursos.js';
 import { getReviews } from '../api/resenas.js';
 import { addToCart } from '../api/carrito.js';
-import { enroll } from '../api/inscripciones.js';
 import { api } from '../api/client.js';
 import { getCourseBySlug } from '../utils/course-cache.js';
 import { Navbar } from '../components/Navbar.js';
@@ -205,7 +204,9 @@ export async function cursoDetalleController(params) {
                   }
                 </div>
                 ${state.isAuthenticated() && state.hasRole('estudiante') ? `
-                  <button class="btn btn-accent btn-lg" id="btn-enroll" style="width:100%">Inscribirse Ahora</button>
+                  <button class="btn btn-accent btn-lg" id="btn-enroll" style="width:100%">
+                    Inscribirse por ${formatPrice(c.precio_descuento || c.precio || 0)}
+                  </button>
                   <button class="btn btn-outline btn-lg" id="btn-cart" style="width:100%">
                     <span class="material-symbols-rounded">shopping_cart</span> Agregar al Carrito
                   </button>
@@ -307,21 +308,11 @@ export async function cursoDetalleController(params) {
 
     const btnEnroll = main.querySelector('#btn-enroll');
     if (btnEnroll) {
-      btnEnroll.addEventListener('click', async () => {
-        try {
-          btnEnroll.disabled = true;
-          btnEnroll.textContent = 'Inscribiendo...';
-          await enroll(cursoId);
-          showToast({ type: 'success', title: 'Inscrito', message: `Te inscribiste a ${c.titulo}.` });
-          window.location.hash = '#/mis-cursos';
-        } catch (err) {
-          btnEnroll.disabled = false;
-          btnEnroll.textContent = 'Inscribirse Ahora';
-          const msg = err.status === 501
-            ? 'El sistema de inscripciones no está disponible aún.'
-            : (err.data?.error || 'No se pudo completar la inscripción.');
-          showToast({ type: 'error', title: 'Error', message: msg });
-        }
+      btnEnroll.addEventListener('click', () => {
+        const precio = c.precio_descuento || c.precio || 0;
+        window.location.hash = `#/checkout?directo=1&curso=${cursoId}&precio=${precio}&titulo=${encodeURIComponent(c.titulo || '')}`;
+      });
+    }
       });
     }
 
