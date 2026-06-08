@@ -156,7 +156,6 @@ export async function cursoDetalleController(params) {
             <h2 style="font-size:var(--fs-headline-sm);margin-bottom:var(--space-4)">Contenido del Curso</h2>
             <div id="lesson-accordion"></div>
 
-            ${esInstructor ? '' : `
             <h2 style="font-size:var(--fs-headline-sm);margin:var(--space-10) 0 var(--space-4)">Reseñas de Estudiantes</h2>
             ${state.isAuthenticated() ? `
               <button class="btn btn-outline btn-sm" id="btn-escribir-resena" style="margin-bottom:var(--space-4)">
@@ -166,7 +165,6 @@ export async function cursoDetalleController(params) {
             <div id="reviews-section">
               <p class="text-muted">Cargando reseñas...</p>
             </div>
-            `}
           </div>
 
           <div class="card" style="position:sticky;top:5rem">
@@ -319,12 +317,11 @@ export async function cursoDetalleController(params) {
       });
     }
 
-    if (!esInstructor) {
-      try {
-        const reviewsData = await getReviews(cursoId);
-        const reviews = Array.isArray(reviewsData) ? reviewsData : (reviewsData.data || []);
-        const reviewsSection = main.querySelector('#reviews-section');
-        if (reviewsSection && reviews.length > 0) {
+    try {
+      const reviewsData = await getReviews(cursoId);
+      const reviews = Array.isArray(reviewsData) ? reviewsData : (reviewsData.data || []);
+      const reviewsSection = main.querySelector('#reviews-section');
+      if (reviewsSection && reviews.length > 0) {
           reviewsSection.innerHTML = reviews.map(r => {
             const estrellas = typeof r.calificacion_promedio === 'number' ? r.calificacion_promedio : 4;
             const nombre = r.estudiante || (r.estudiante_id ? 'Estudiante #' + String(r.estudiante_id).substring(0, 8) : 'Estudiante');
@@ -356,7 +353,6 @@ export async function cursoDetalleController(params) {
           reviewsSection.innerHTML = '<p class="text-muted">Aún no hay reseñas. ¡Sé el primero en opinar!</p>';
         }
       } catch (_) {}
-    }
 
     const btnEscribirResena = main.querySelector('#btn-escribir-resena');
     if (btnEscribirResena) {
