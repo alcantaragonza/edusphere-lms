@@ -6,7 +6,6 @@ import { state } from '../utils/state.js';
 import { createEl } from '../utils/dom.js';
 import { formatNumber } from '../utils/formatters.js';
 import { getMyCourses } from '../api/inscripciones.js';
-import { getCertificates } from '../api/certificados.js';
 import { cacheCourses } from '../utils/course-cache.js';
 import { Navbar } from '../components/Navbar.js';
 import { Footer } from '../components/Footer.js';
@@ -31,11 +30,7 @@ export async function dashboardEstudianteController() {
   main.appendChild(LoadingSpinner({ text: 'Cargando dashboard...' }));
 
   try {
-    const [cursosData, certsData] = await Promise.all([
-      getMyCourses().catch(() => ({ cursos: [] })),
-      getCertificates().catch(() => ({ certificados: [] })),
-    ]);
-
+    const cursosData = await getMyCourses().catch(() => []);
     const cursos = (Array.isArray(cursosData) ? cursosData : (cursosData?.cursos || cursosData?.data || [])).map(c => ({
       ...c,
       titulo: c.curso_titulo || c.titulo,
@@ -44,7 +39,14 @@ export async function dashboardEstudianteController() {
       imagen_url: c.imagen_portada_url || c.imagen_url,
     }));
     cacheCourses(cursos);
-    const certificados = Array.isArray(certsData) ? certsData : (certsData?.certificados || certsData?.data || []);
+
+    const certificados = cursos
+      .filter(c => c.certificado_obtenido)
+      .map(c => ({
+        id: c.inscripcion_id,
+        curso_titulo: c.titulo,
+        fecha_emision: c.fecha_inscripcion,
+      }));
     const user = state.user;
 
     const totalHours = cursos.reduce((s, c) => s + (c.horas_completadas || 0), 0);
@@ -117,6 +119,10 @@ export async function dashboardEstudianteController() {
       }));
     } else {
       cursos.forEach(c => {
+        const completado = c.estado_inscripcion === 'completado';
+        const totalLecciones = c.total_lecciones || 0;
+        const progressPct = completado ? 100 : (c.certificado_obtenido ? 100 : 0);
+
         const wrapper = createEl('div');
         wrapper.innerHTML = `
           <div class="card" style="overflow:visible">
@@ -132,18 +138,32 @@ export async function dashboardEstudianteController() {
               </a>
               <div style="margin-bottom:var(--space-3)"></div>
             </div>
-            <div style="padding:0 var(--space-4) var(--space-4)">
+            <div style="padding:0 var(--space-4) var(--space-4);display:flex;flex-direction:column;gap:var(--space-2)">
+              ${c.certificado_obtenido ? `
+                <span class="tag tag-success" style="width:100%;text-align:center;padding:var(--space-2)">
+                  <span class="material-symbols-rounded" style="font-size:1rem;vertical-align:middle">verified</span> Certificado obtenido
+                </span>
+              ` : completado ? `
+                <span class="tag tag-accent" style="width:100%;text-align:center;padding:var(--space-2)">
+                  <span class="material-symbols-rounded" style="font-size:1rem;vertical-align:middle">hourglass_top</span> Completado — Certificado pendiente
+                </span>
+              ` : ''}
               <a href="#/curso/${c.slug}/aprender" class="btn btn-primary btn-sm" style="width:100%">
-                ${(c.porcentaje_avance || 0) >= 100 ? 'Repasar' : 'Continuar Aprendiendo'}
+                ${completado ? 'Repasar' : 'Continuar Aprendiendo'}
               </a>
+              ${totalLecciones > 0 ? `
+                <div style="font-size:var(--fs-caption);color:var(--color-text-muted);text-align:center">
+                  ${c.total_modulos || 0} módulos · ${totalLecciones} lecciones
+                </div>
+              ` : ''}
             </div>
           </div>
         `;
 
         const progressEl = wrapper.querySelector('.card > div:nth-child(2) > div');
         progressEl.appendChild(ProgressBar({
-          percent: c.porcentaje_avance || 0,
-          label: `${Math.round(c.porcentaje_avance || 0)}% completado · ${c.lecciones_completadas || 0}/${c.total_lecciones || 0} lecciones`,
+          percent: progressPct,
+          label: `${progressPct}% completado · ${totalLecciones} lecciones`,
           size: 'sm',
         }));
 

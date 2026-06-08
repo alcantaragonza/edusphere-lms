@@ -89,9 +89,14 @@ export async function dashboardInstructorController() {
           <h1 style="font-size:var(--fs-display-md);margin-bottom:var(--space-2)">¡Bienvenido, ${user?.nombre || 'Instructor'}!</h1>
           <p class="text-muted" style="font-size:var(--fs-body-lg)">Esto es lo que está pasando con tus cursos este mes.</p>
         </div>
-        <button class="btn btn-primary" id="btn-crear-curso" ${!puedeCrear ? 'disabled' : ''}>
-          <span class="material-symbols-rounded">add_circle</span> Crear Nuevo Curso
-        </button>
+        <div style="display:flex;gap:var(--space-3)">
+          <a href="#/certificado/emitir" class="btn btn-accent">
+            <span class="material-symbols-rounded">workspace_premium</span> Emitir Certificado
+          </a>
+          <button class="btn btn-primary" id="btn-crear-curso" ${!puedeCrear ? 'disabled' : ''}>
+            <span class="material-symbols-rounded">add_circle</span> Crear Nuevo Curso
+          </button>
+        </div>
       </div>
 
       ${!puedeCrear ? `
