@@ -1,0 +1,71 @@
+/* ============================================================
+   ProgressBar — Linear & Circular
+   ============================================================ */
+
+.progress-bar {
+  width: 100%;
+  height: 0.5rem;
+  background: var(--color-surface-hover);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--gradient-progress);
+  border-radius: var(--radius-full);
+  transition: width var(--transition-slow);
+}
+
+.progress-bar-sm { height: 0.375rem; }
+.progress-bar-lg { height: 0.75rem; }
+
+/* With label */
+.progress-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.progress-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--fs-body-sm);
+}
+
+.progress-percent {
+  font-weight: var(--fw-semibold);
+  color: var(--color-primary);
+}
+
+/* Circular progress */
+.progress-circle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress-circle svg {
+  transform: rotate(-90deg);
+}
+
+.progress-circle-bg {
+  fill: none;
+  stroke: var(--color-surface-hover);
+}
+
+.progress-circle-fill {
+  fill: none;
+  stroke: url(#progressGradient);
+  stroke-linecap: round;
+  transition: stroke-dashoffset var(--transition-slow);
+}
+
+.progress-circle-text {
+  position: absolute;
+  font-family: var(--font-headline);
+  font-weight: var(--fw-bold);
+  color: var(--color-text);
+}

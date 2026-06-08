@@ -1,0 +1,45 @@
+/* ============================================================
+   StarRating — Display e Input
+   ============================================================ */
+
+.stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.stars .material-symbols-rounded {
+  font-size: 1.25rem;
+  font-variation-settings: 'FILL' 1;
+  color: var(--color-accent);
+}
+
+.stars .material-symbols-rounded.empty {
+  font-variation-settings: 'FILL' 0;
+  color: var(--color-border-light);
+}
+
+.stars-rating-value {
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-body-sm);
+  margin-left: var(--space-1);
+}
+
+.stars-rating-count {
+  font-size: var(--fs-caption);
+  color: var(--color-text-muted);
+  margin-left: var(--space-1);
+}
+
+/* Interactive stars (input) */
+.stars-interactive .material-symbols-rounded {
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+}
+
+.stars-interactive .material-symbols-rounded:hover {
+  transform: scale(1.15);
+}
+
+.stars-sm .material-symbols-rounded { font-size: 1rem; }
+.stars-lg .material-symbols-rounded { font-size: 1.5rem; }

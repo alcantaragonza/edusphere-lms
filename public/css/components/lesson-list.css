@@ -1,0 +1,124 @@
+/* ============================================================
+   LessonAccordion — Modules tree
+   ============================================================ */
+
+.lesson-accordion {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+
+.lesson-module {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.lesson-module:last-child {
+  border-bottom: none;
+}
+
+.lesson-module-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-surface);
+  transition: background var(--transition-fast);
+  cursor: pointer;
+  text-align: left;
+  color: var(--color-text);
+}
+
+.lesson-module-header:hover {
+  background: var(--color-surface-hover);
+}
+
+.lesson-module-header.active {
+  background: var(--color-surface-elevated);
+  border-left: 3px solid var(--color-primary);
+}
+
+.lesson-module-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.lesson-module-title {
+  font-family: var(--font-headline);
+  font-size: var(--fs-body-md);
+  font-weight: var(--fw-semibold);
+}
+
+.lesson-module-meta {
+  font-size: var(--fs-caption);
+  color: var(--color-text-muted);
+}
+
+.lesson-module-icon {
+  transition: transform var(--transition-fast);
+  color: var(--color-text-muted);
+}
+
+.lesson-module-header.active .lesson-module-icon {
+  transform: rotate(180deg);
+  color: var(--color-primary);
+}
+
+.lesson-module-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height var(--transition-normal);
+}
+
+.lesson-module-body.open {
+  max-height: 2000px;
+}
+
+.lesson-list {
+  padding: 0 var(--space-5) var(--space-4);
+}
+
+.lesson-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: var(--fs-body-sm);
+}
+
+.lesson-item:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.lesson-item.active {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.lesson-item.completed {
+  color: var(--color-success);
+}
+
+.lesson-item-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.lesson-item-duration {
+  margin-left: auto;
+  font-size: var(--fs-caption);
+  color: var(--color-text-muted);
+}
+
+.lesson-item-check {
+  color: var(--color-success);
+  font-size: 1.1rem;
+}
