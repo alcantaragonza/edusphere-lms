@@ -57,7 +57,9 @@ export async function homeController() {
     cacheCourses(todosCursos);
   } catch (_) {}
 
-  todosCursos = todosCursos.map(c => ({
+  todosCursos = todosCursos
+    .filter(c => c.estado === 'publicado' || c.estado === undefined)
+    .map(c => ({
     ...c,
     instructor: c.instructor || c.instructor_nombre || c.instructor_name || c.nombre_instructor || '',
     categoria: c.categoria || c.categoria_nombre || c.categoria_name || c.nombre_categoria || '',
