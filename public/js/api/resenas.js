@@ -1,5 +1,5 @@
 /**
- * Reseñas API — No existe en backend. Mock-only.
+ * Reseñas API — Backend: GET/POST /api/cursos/:id/resenas (MongoDB)
  */
 import { api } from './client.js';
 

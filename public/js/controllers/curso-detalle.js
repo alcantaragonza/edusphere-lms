@@ -298,7 +298,7 @@ export async function cursoDetalleController(params) {
     if (btnCart) {
       btnCart.addEventListener('click', async () => {
         try {
-          await addToCart(cursoId);
+          await addToCart(cursoId, c.precio_descuento || c.precio);
           showToast({ type: 'success', title: 'Agregado', message: `${c.titulo} se agregó a tu carrito.` });
         } catch {
           showToast({ type: 'error', title: 'Error', message: 'No se pudo agregar.' });

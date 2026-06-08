@@ -1,12 +1,16 @@
 /**
- * Progreso API — Backend solo tiene RC-03 (consulta). Guardado es mock.
+ * Progreso API — Backend: GET/POST /api/progreso (MongoDB)
  */
 import { api } from './client.js';
 
-export async function saveProgress(lessonId, data) {
-  return api.post('/progreso', { leccion_id: lessonId, ...data });
+export async function saveProgress(data) {
+  return api.post('/progreso', data);
 }
 
-export async function getLessonProgress(lessonId) {
-  return api.get(`/progreso/${lessonId}`);
+export async function getProgress() {
+  return api.get('/progreso');
+}
+
+export async function getProgressById(id) {
+  return api.get(`/progreso/${id}`);
 }

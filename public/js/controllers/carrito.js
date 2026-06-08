@@ -6,6 +6,7 @@ import { state } from '../utils/state.js';
 import { createEl } from '../utils/dom.js';
 import { formatPrice } from '../utils/formatters.js';
 import { getCart, removeFromCart } from '../api/carrito.js';
+import { getCatalog } from '../api/cursos.js';
 import { Navbar } from '../components/Navbar.js';
 import { Footer } from '../components/Footer.js';
 import { EmptyState } from '../components/EmptyState.js';
@@ -29,9 +30,26 @@ export async function carritoController() {
   main.appendChild(LoadingSpinner({ text: 'Cargando carrito...' }));
 
   try {
-    const data = await getCart().catch(() => ({ items: [], total: 0 }));
-    const items = data.items || data.data || [];
-    const total = data.total || 0;
+    const data = await getCart().catch(() => []);
+    const cartItems = Array.isArray(data) ? data : (data.data || []);
+    let cursosMap = {};
+    try {
+      const catalog = await getCatalog();
+      const all = Array.isArray(catalog) ? catalog : (catalog.data || catalog.cursos || []);
+      all.forEach(c => { cursosMap[c.id || c.curso_id] = c; });
+    } catch (_) {}
+    const items = cartItems.map(item => {
+      const curso = cursosMap[item.curso_id] || {};
+      return {
+        id: item.id,
+        curso_id: item.curso_id,
+        titulo: curso.titulo || curso.curso_titulo || 'Curso',
+        slug: curso.slug || curso.curso_slug || item.curso_id,
+        precio: Number(item.precio_snapshot) || 0,
+        instructor: curso.instructor || curso.instructor_nombre || '',
+      };
+    });
+    const total = items.reduce((s, i) => s + i.precio, 0);
 
     main.innerHTML = `
       <div class="container" style="padding-block:var(--space-8);max-width:900px">
