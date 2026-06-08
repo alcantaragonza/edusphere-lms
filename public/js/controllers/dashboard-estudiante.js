@@ -35,8 +35,8 @@ export async function dashboardEstudianteController() {
       getCertificates().catch(() => ({ certificados: [] })),
     ]);
 
-    const cursos = cursosData.cursos || cursosData.data || [];
-    const certificados = certsData.certificados || certsData.data || [];
+    const cursos = Array.isArray(cursosData) ? cursosData : (cursosData?.cursos || cursosData?.data || []);
+    const certificados = Array.isArray(certsData) ? certsData : (certsData?.certificados || certsData?.data || []);
     const user = state.user;
 
     const totalHours = cursos.reduce((s, c) => s + (c.horas_completadas || 0), 0);

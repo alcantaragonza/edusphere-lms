@@ -5,8 +5,11 @@
 import { api } from './client.js';
 
 export async function getCertificates() {
-  // Backend no tiene GET /certificados — cae en mock
-  return api.get('/certificados');
+  try {
+    return await api.get('/certificados');
+  } catch (_) {
+    return [];
+  }
 }
 
 export async function emitCertificate(inscripcionId) {
