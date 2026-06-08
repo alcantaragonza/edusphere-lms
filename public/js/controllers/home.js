@@ -5,6 +5,7 @@
 import { state } from '../utils/state.js';
 import { createEl } from '../utils/dom.js';
 import { getCatalog, getCategories } from '../api/cursos.js';
+import { api } from '../api/client.js';
 import { cacheCourses } from '../utils/course-cache.js';
 import { Navbar } from '../components/Navbar.js';
 import { Footer } from '../components/Footer.js';
@@ -28,10 +29,41 @@ export async function homeController() {
   let currentPage = 1;
 
   try {
-    const data = await getCatalog();
-    todosCursos = Array.isArray(data) ? data : (data.data || data.cursos || []);
+    let data;
+    try {
+      data = await api.get('/reportes/catalogo');
+    } catch (_) {
+      data = null;
+    }
+    todosCursos = (data && Array.isArray(data)) ? data : [];
+
+    if (todosCursos.length === 0) {
+      data = await getCatalog();
+      todosCursos = Array.isArray(data) ? data : (data.data || data.cursos || []);
+      try {
+        const insData = await api.get('/instructores');
+        const instructores = Array.isArray(insData) ? insData : (insData.data || []);
+        const usersData = await api.get('/usuarios');
+        const usuarios = Array.isArray(usersData) ? usersData : (usersData.data || []);
+        const userMap = {};
+        usuarios.forEach(u => { userMap[u.id] = (u.nombre || '') + ' ' + (u.apellido || ''); });
+        const insMap = {};
+        instructores.forEach(i => { insMap[i.id] = userMap[i.usuario_id] || ('Instructor #' + i.id); });
+        todosCursos.forEach(c => {
+          c.instructor_nombre = insMap[c.instructor_id] || ('Instructor #' + c.instructor_id);
+        });
+      } catch (_) {}
+    }
     cacheCourses(todosCursos);
   } catch (_) {}
+
+  todosCursos = todosCursos.map(c => ({
+    ...c,
+    instructor: c.instructor || c.instructor_nombre || c.instructor_name || c.nombre_instructor || '',
+    categoria: c.categoria || c.categoria_nombre || c.categoria_name || c.nombre_categoria || '',
+    calificacion_promedio: Number(c.calificacion_promedio) || 0,
+    total_estudiantes: Number(c.total_estudiantes) || 0,
+  }));
 
   try {
     const catData = await getCategories();

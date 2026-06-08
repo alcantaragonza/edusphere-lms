@@ -24,8 +24,8 @@ export function CourseCard({ id, slug, titulo, descripcion, instructor, precio, 
     </div>
     <div class="course-card-body">
       <div class="course-card-title">${titulo}</div>
-      <div class="course-card-instructor">Por ${instructor}</div>
-      ${calificacion_promedio ? StarRatingDisplay(Number(calificacion_promedio), total_resenas) : ''}
+      ${instructor ? `<div class="course-card-instructor">Por ${instructor}</div>` : ''}
+      ${calificacion_promedio && Number(calificacion_promedio) > 0 ? StarRatingDisplay(Number(calificacion_promedio), total_resenas) : ''}
       ${descripcion && variant === 'horizontal'
         ? `<p class="text-muted" style="font-size:var(--fs-body-sm);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${descripcion}</p>`
         : ''
