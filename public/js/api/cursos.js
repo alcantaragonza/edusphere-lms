@@ -13,11 +13,11 @@ export async function getCourseById(id) {
 }
 
 export async function getCourseModules(cursoId) {
-  return api.get(`/modulos?curso_id=${cursoId}`);
+  return api.get(`/modulos?limit=9999`);
 }
 
 export async function getModuleLessons(moduloId) {
-  return api.get(`/lecciones?modulo_id=${moduloId}`);
+  return api.get(`/lecciones?limit=9999`);
 }
 
 export async function getLesson(lessonId) {

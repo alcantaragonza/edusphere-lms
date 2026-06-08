@@ -422,12 +422,13 @@ function renderInstructorAccordion(modules, slug, esInstructor, cursoId) {
 }
 
 async function openAddModuloModal(cursoId, slug) {
-  // Auto-calcular orden basado en módulos existentes
   let nextOrden = 1;
   try {
-    const modsData = await api.get(`/modulos?curso_id=${cursoId}`);
+    const modsData = await api.get('/modulos?limit=9999');
     const all = Array.isArray(modsData) ? modsData : (modsData.data || []);
-    nextOrden = all.length + 1;
+    const cursoMods = all.filter(m => m.curso_id === cursoId);
+    const maxOrden = cursoMods.reduce((max, m) => Math.max(max, m.orden || 0), 0);
+    nextOrden = maxOrden + 1;
   } catch (_) {}
 
   const formHtml = `
