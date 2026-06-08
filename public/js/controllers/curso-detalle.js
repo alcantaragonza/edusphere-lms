@@ -263,7 +263,10 @@ export async function cursoDetalleController(params) {
         } catch (err) {
           btnEnroll.disabled = false;
           btnEnroll.textContent = 'Inscribirse Ahora';
-          showToast({ type: 'error', title: 'Error', message: err.data?.error || 'No se pudo inscribir.' });
+          const msg = err.status === 501
+            ? 'El sistema de inscripciones no está disponible aún.'
+            : (err.data?.error || 'No se pudo completar la inscripción.');
+          showToast({ type: 'error', title: 'Error', message: msg });
         }
       });
     }
