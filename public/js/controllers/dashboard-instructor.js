@@ -42,8 +42,24 @@ export async function dashboardInstructorController() {
     if (perfilInstructor) {
       instructorId = perfilInstructor.id;
       try {
-        const ingData = await api.get(`/instructores/${instructorId}/ingresos`);
-        earnings = ingData.data || ingData || {};
+        const hoy = new Date();
+        const desde = new Date(hoy.getFullYear() - 1, hoy.getMonth(), 1).toISOString().split('T')[0];
+        const hasta = hoy.toISOString().split('T')[0];
+        const ingData = await api.get(`/instructores/${instructorId}/ingresos?desde=${desde}&hasta=${hasta}`);
+        const rows = Array.isArray(ingData) ? ingData : (ingData.data || []);
+        if (rows.length > 0) {
+          const total = rows.reduce((acc, r) => {
+            acc.gross += Number(r.ingresos_brutos || r.monto_bruto || r.total_bruto || 0);
+            acc.net += Number(r.ingresos_netos || r.monto_neto || r.total_neto || 0);
+            acc.fee += Number(r.comision || r.plataforma || 0);
+            return acc;
+          }, { gross: 0, net: 0, fee: 0 });
+          earnings = {
+            net_earnings: total.net || total.gross * 0.7,
+            gross_earnings: total.gross,
+            platform_fee: total.fee || total.gross * 0.3,
+          };
+        }
       } catch (_) {}
     }
   } catch (_) {}
