@@ -309,7 +309,7 @@ export async function cursoDetalleController(params) {
     const btnEnroll = main.querySelector('#btn-enroll');
     if (btnEnroll) {
       btnEnroll.addEventListener('click', () => {
-        const precio = c.precio_descuento || c.precio || 0;
+        const precio = c.precio_descuento != null ? Number(c.precio_descuento) : Number(c.precio) || 0;
         window.location.hash = `#/checkout?directo=1&curso=${cursoId}&precio=${precio}&titulo=${encodeURIComponent(c.titulo || '')}`;
       });
     }

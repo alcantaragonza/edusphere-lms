@@ -6,6 +6,7 @@ import { state } from '../utils/state.js';
 import { createEl } from '../utils/dom.js';
 import { formatPrice } from '../utils/formatters.js';
 import { getCart } from '../api/carrito.js';
+import { getCatalog } from '../api/cursos.js';
 import { enroll } from '../api/inscripciones.js';
 import { Navbar } from '../components/Navbar.js';
 import { Footer } from '../components/Footer.js';
@@ -33,13 +34,24 @@ export async function checkoutController() {
   let total = 0;
 
   if (esDirecto) {
-    const curso = {
-      curso_id: queryParams.get('curso'),
-      titulo: decodeURIComponent(queryParams.get('titulo') || 'Curso'),
-      precio: parseFloat(queryParams.get('precio') || '0'),
-    };
+    const cursoId = queryParams.get('curso');
+    const titulo = decodeURIComponent(queryParams.get('titulo') || 'Curso');
+    let precio = parseFloat(queryParams.get('precio')) || 0;
+
+    if (!precio && cursoId) {
+      try {
+        const catalogRes = await getCatalog();
+        const all = Array.isArray(catalogRes) ? catalogRes : (catalogRes.data || catalogRes.cursos || []);
+        const found = all.find(c => (c.id || c.curso_id) === cursoId);
+        if (found) {
+          precio = Number(found.precio_descuento || found.precio) || 0;
+        }
+      } catch (_) {}
+    }
+
+    const curso = { curso_id: cursoId, titulo, precio };
     items = [curso];
-    total = curso.precio;
+    total = precio;
     main.innerHTML = renderCheckout(items, total, true);
   } else {
     try {
