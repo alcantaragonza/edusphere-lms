@@ -60,18 +60,47 @@ export async function cursoDetalleController(params) {
     return;
   }
 
-  try {
-    const courseRes = await getCourseById(cursoId);
-    const c = courseRes.data || courseRes;
-    const modsData = await getCourseModules(cursoId);
-    const allMods = Array.isArray(modsData) ? modsData : (modsData.data || []);
-    // Filtrar por curso_id (backend no soporta el filtro)
-    const mods = allMods.filter(m => m.curso_id === cursoId);
+  let cursoData = cached || null;
 
-    const modulesWithLessons = await Promise.all(mods.map(async m => ({
-      ...m,
-      lecciones: Array.isArray(m.lecciones) ? m.lecciones : await getModuleLessons(m.id).then(r => Array.isArray(r) ? r : (r.data || [])).catch(() => []),
-    })));
+  if (!cursoData) {
+    try {
+      const res = await getCatalog();
+      const all = Array.isArray(res) ? res : (res.data || res.cursos || []);
+      cursoData = all.find(c => c.id === cursoId) || null;
+    } catch (_) {}
+  }
+
+  if (!cursoData) {
+    if (state.isAuthenticated()) {
+      try {
+        const courseRes = await getCourseById(cursoId);
+        cursoData = courseRes.data || courseRes;
+      } catch (_) {}
+    }
+  }
+
+  if (!cursoData) {
+    main.innerHTML = `<div class="container section text-center"><h2>Curso no encontrado</h2><a href="#/" class="btn btn-primary" style="margin-top:var(--space-6)">Explorar Cursos</a></div>`;
+    return;
+  }
+
+  const c = cursoData;
+
+  let mods = [];
+  let modulesWithLessons = [];
+
+  if (state.isAuthenticated()) {
+    try {
+      const modsData = await getCourseModules(cursoId);
+      const allMods = Array.isArray(modsData) ? modsData : (modsData.data || []);
+      mods = allMods.filter(m => m.curso_id === cursoId);
+
+      modulesWithLessons = await Promise.all(mods.map(async m => ({
+        ...m,
+        lecciones: Array.isArray(m.lecciones) ? m.lecciones : await getModuleLessons(m.id).then(r => Array.isArray(r) ? r : (r.data || [])).catch(() => []),
+      })));
+    } catch (_) {}
+  }
 
     // ¿Es el instructor dueño de este curso?
     const userId = localStorage.getItem('edusphere_user_id');
@@ -262,9 +291,6 @@ export async function cursoDetalleController(params) {
       } catch (_) {}
     }
 
-  } catch (err) {
-    main.innerHTML = `<div class="container section text-center"><h2>Error al cargar</h2><p class="text-muted">${err.message}</p><a href="#/" class="btn btn-primary" style="margin-top:var(--space-6)">Explorar Cursos</a></div>`;
-  }
 }
 
 function renderInstructorAccordion(modules, slug, esInstructor, cursoId) {
