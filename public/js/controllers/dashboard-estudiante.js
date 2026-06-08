@@ -35,7 +35,13 @@ export async function dashboardEstudianteController() {
       getCertificates().catch(() => ({ certificados: [] })),
     ]);
 
-    const cursos = Array.isArray(cursosData) ? cursosData : (cursosData?.cursos || cursosData?.data || []);
+    const cursos = (Array.isArray(cursosData) ? cursosData : (cursosData?.cursos || cursosData?.data || [])).map(c => ({
+      ...c,
+      titulo: c.curso_titulo || c.titulo,
+      slug: c.curso_slug || c.slug,
+      id: c.curso_id || c.id,
+      imagen_url: c.imagen_portada_url || c.imagen_url,
+    }));
     const certificados = Array.isArray(certsData) ? certsData : (certsData?.certificados || certsData?.data || []);
     const user = state.user;
 
