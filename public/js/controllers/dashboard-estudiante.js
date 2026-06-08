@@ -7,6 +7,7 @@ import { createEl } from '../utils/dom.js';
 import { formatNumber } from '../utils/formatters.js';
 import { getMyCourses } from '../api/inscripciones.js';
 import { getCertificates } from '../api/certificados.js';
+import { cacheCourses } from '../utils/course-cache.js';
 import { Navbar } from '../components/Navbar.js';
 import { Footer } from '../components/Footer.js';
 import { ProgressBar } from '../components/ProgressBar.js';
@@ -42,6 +43,7 @@ export async function dashboardEstudianteController() {
       id: c.curso_id || c.id,
       imagen_url: c.imagen_portada_url || c.imagen_url,
     }));
+    cacheCourses(cursos);
     const certificados = Array.isArray(certsData) ? certsData : (certsData?.certificados || certsData?.data || []);
     const user = state.user;
 

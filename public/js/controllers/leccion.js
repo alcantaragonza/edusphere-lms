@@ -4,7 +4,7 @@
  */
 import { state } from '../utils/state.js';
 import { createEl } from '../utils/dom.js';
-import { getCourseModules, getModuleLessons, getLesson } from '../api/cursos.js';
+import { getCourseModules, getModuleLessons, getLesson, getCatalog } from '../api/cursos.js';
 import { saveProgress } from '../api/progreso.js';
 import { getCourseBySlug } from '../utils/course-cache.js';
 import { Navbar } from '../components/Navbar.js';
@@ -25,8 +25,20 @@ export async function leccionController(params) {
   if (!state.isAuthenticated()) { window.location.hash = '#/login'; return; }
 
   const cached = getCourseBySlug(slug);
-  const cursoId = cached?.id || slug;
-  const courseTitle = cached?.titulo || 'Curso';
+  let cursoId = cached?.id || null;
+  let courseTitle = cached?.titulo || cached?.curso_titulo || 'Curso';
+
+  if (!cursoId) {
+    try {
+      const all = await getCatalog();
+      const cursos = Array.isArray(all) ? all : (all.data || all.cursos || []);
+      const found = cursos.find(c => c.slug === slug || c.curso_slug === slug);
+      if (found) {
+        cursoId = found.id || found.curso_id;
+        courseTitle = found.titulo || found.curso_titulo || courseTitle;
+      }
+    } catch (_) {}
+  }
 
   const main = createEl('main');
   app.appendChild(Navbar());
