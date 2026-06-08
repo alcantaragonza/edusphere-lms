@@ -313,8 +313,6 @@ export async function cursoDetalleController(params) {
         window.location.hash = `#/checkout?directo=1&curso=${cursoId}&precio=${precio}&titulo=${encodeURIComponent(c.titulo || '')}`;
       });
     }
-      });
-    }
 
     if (!esInstructor) {
       try {
