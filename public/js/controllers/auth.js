@@ -148,7 +148,7 @@ function renderLoginForm() {
       </div>
       <div class="form-group">
         <label class="form-label">Contraseña</label>
-        <input type="password" name="password" class="form-input" placeholder="Tu contraseña" required minlength="8">
+        <input type="password" name="password" class="form-input" placeholder="Tu contraseña" required minlength="6">
       </div>
       <button type="submit" class="btn btn-primary btn-lg" style="width:100%;margin-top:var(--space-2)">Iniciar Sesión</button>
     </form>
@@ -172,7 +172,7 @@ function renderRegisterForm() {
       </div>
       <div class="form-group">
         <label class="form-label">Contraseña</label>
-        <input type="password" name="password" class="form-input" placeholder="Mín. 8 caracteres" required minlength="8">
+        <input type="password" name="password" class="form-input" placeholder="Mín. 6 caracteres" required minlength="6">
       </div>
       <div class="grid grid-2" style="gap:var(--space-4)">
         <div class="form-group">
