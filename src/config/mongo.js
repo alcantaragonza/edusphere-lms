@@ -52,4 +52,4 @@ function getDb() {
 mongoose.connection.on('disconnected', () => console.warn('[mongo] Desconectado'));
 mongoose.connection.on('error', (err) => console.error('[mongo] Error:', err.message));
 
-module.exports = { conectarMongo, getDb };
+module.exports = { conectarMongo, getDb, mongoose };

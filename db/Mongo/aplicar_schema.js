@@ -1,7 +1,12 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 
-const MONGO_URI = 'mongodb://mongo:StmrGJVvfQyyBdVBFdIkpQQweglHMpvU@zephyr.proxy.rlwy.net:50693/edusphere?authSource=admin';
+const MONGO_HOST = process.env.MONGO_HOST;
+const MONGO_PORT = process.env.MONGO_PORT || '27017';
+const MONGO_USER = process.env.MONGO_INITDB_ROOT_USERNAME;
+const MONGO_PASS = process.env.MONGO_INITDB_ROOT_PASSWORD;
+const MONGO_DB = process.env.MONGO_INITDB_DATABASE || 'edusphere';
+const MONGO_URI = `mongodb://${MONGO_USER}:${encodeURIComponent(MONGO_PASS)}@${MONGO_HOST}:${MONGO_PORT}/${MONGO_DB}?authSource=admin`;
 
 const collections = [
   {
