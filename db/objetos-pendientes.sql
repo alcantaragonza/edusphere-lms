@@ -1,15 +1,17 @@
 -- OC-01: sp_inscribir_estudiante
 CREATE OR REPLACE PROCEDURE sp_inscribir_estudiante(
-    p_estudiante_id uuid,
-    p_curso_id      uuid
+    p_usuario_id uuid,
+    p_curso_id   uuid
 )
 LANGUAGE plpgsql AS $$
 DECLARE
-    v_estado_curso text;
-    v_precio       numeric(10,2);
+    v_est_id        uuid;
+    v_estado_curso  text;
+    v_precio        numeric(10,2);
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM estudiantes WHERE id = p_estudiante_id) THEN
-        RAISE EXCEPTION 'El estudiante % no existe', p_estudiante_id;
+    SELECT id INTO v_est_id FROM estudiantes WHERE usuario_id = p_usuario_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'El usuario % no tiene perfil de estudiante', p_usuario_id;
     END IF;
 
     SELECT c.estado::text, COALESCE(c.precio_descuento, c.precio)
@@ -28,7 +30,7 @@ BEGIN
 
     IF EXISTS (
         SELECT 1 FROM inscripciones
-         WHERE estudiante_id = p_estudiante_id
+         WHERE estudiante_id = v_est_id
            AND curso_id      = p_curso_id
     ) THEN
         RAISE EXCEPTION 'El estudiante ya esta inscrito en este curso'
@@ -36,10 +38,10 @@ BEGIN
     END IF;
 
     INSERT INTO inscripciones (estudiante_id, curso_id, monto_pagado)
-    VALUES (p_estudiante_id, p_curso_id, v_precio);
+    VALUES (v_est_id, p_curso_id, v_precio);
 
     UPDATE cursos      SET total_estudiantes = total_estudiantes + 1 WHERE id = p_curso_id;
-    UPDATE estudiantes SET total_cursos      = total_cursos + 1      WHERE id = p_estudiante_id;
+    UPDATE estudiantes SET total_cursos      = total_cursos + 1      WHERE id = v_est_id;
 END;
 $$;
 
