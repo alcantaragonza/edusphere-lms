@@ -49,9 +49,11 @@ export async function dashboardInstructorController() {
         const rows = Array.isArray(ingData) ? ingData : (ingData.data || []);
         if (rows.length > 0) {
           const total = rows.reduce((acc, r) => {
-            acc.gross += Number(r.ingreso_bruto || r.ingresos_brutos || 0);
-            acc.net += Number(r.ingreso_neto || r.ingresos_netos || 0);
-            acc.fee += acc.gross - acc.net;
+            const bruto = Number(r.ingreso_bruto || r.ingresos_brutos || 0);
+            const neto = Number(r.ingreso_neto || r.ingresos_netos || 0);
+            acc.gross += bruto;
+            acc.net += neto;
+            acc.fee += bruto - neto;
             return acc;
           }, { gross: 0, net: 0, fee: 0 });
           earnings = {
