@@ -103,24 +103,56 @@ export async function leccionController(params) {
       try {
         const lessonData = await getLesson(lessonId);
         const lesson = lessonData.data || lessonData;
-        contentArea.innerHTML = `
-          <div style="width:100%;max-width:960px;padding:var(--space-8)">
+        const tipo = lesson.tipo || 'video';
+        let mediaHtml = '';
+
+        if (tipo === 'video') {
+          mediaHtml = `
             <div style="aspect-ratio:16/9;background:var(--color-bg);border-radius:var(--radius-xl);display:flex;align-items:center;justify-content:center;border:1px solid var(--color-border);margin-bottom:var(--space-8)">
               <div style="text-align:center">
                 <span class="material-symbols-rounded" style="font-size:5rem;opacity:0.3">play_circle</span>
                 <p class="text-muted" style="margin-top:var(--space-4)">Reproductor de Video</p>
                 <p class="text-muted" style="font-size:var(--fs-caption)">${lesson.duracion_minutos || 0} min</p>
               </div>
-            </div>
+            </div>`;
+        } else if (tipo === 'cuestionario') {
+          mediaHtml = `
+            <div style="background:var(--color-surface);border-radius:var(--radius-xl);padding:var(--space-6);border:1px solid var(--color-border);margin-bottom:var(--space-8)">
+              <div class="flex items-center gap-3" style="margin-bottom:var(--space-4)">
+                <span class="material-symbols-rounded text-accent" style="font-size:2.5rem">quiz</span>
+                <div>
+                  <p class="fw-semibold">Cuestionario</p>
+                  <p class="text-muted" style="font-size:var(--fs-body-sm)">Responde las preguntas para evaluar tu conocimiento</p>
+                </div>
+              </div>
+              <button class="btn btn-accent btn-lg" style="width:100%" disabled>Iniciar Cuestionario (próximamente)</button>
+            </div>`;
+        } else if (tipo === 'descarga') {
+          mediaHtml = `
+            <div style="background:var(--color-surface);border-radius:var(--radius-xl);padding:var(--space-6);border:1px solid var(--color-border);margin-bottom:var(--space-8)">
+              <div class="flex items-center gap-3">
+                <span class="material-symbols-rounded text-primary" style="font-size:2.5rem">download</span>
+                <div>
+                  <p class="fw-semibold">Recurso Descargable</p>
+                  <p class="text-muted" style="font-size:var(--fs-body-sm)">Material complementario de la lección</p>
+                </div>
+              </div>
+            </div>`;
+        }
+
+        contentArea.innerHTML = `
+          <div style="width:100%;max-width:960px;padding:var(--space-8)">
+            ${mediaHtml}
             <div style="margin-bottom:var(--space-6)">
-              <h1 style="font-size:var(--fs-headline-sm);margin-bottom:var(--space-6)">${lesson.titulo}</h1>
+              <h1 style="font-size:var(--fs-headline-sm);margin-bottom:var(--space-4)">${lesson.titulo}</h1>
+              ${tipo !== 'lectura' ? '' : `<span class="tag tag-primary" style="margin-bottom:var(--space-4)">Lectura</span>`}
               <button class="btn btn-accent" id="btn-mark-complete" ${lesson.completada ? 'disabled' : ''}>
                 <span class="material-symbols-rounded">check_circle</span>
                 ${lesson.completada ? 'Completada' : 'Marcar como completada'}
               </button>
             </div>
             <div style="border-top:1px solid var(--color-border);padding-top:var(--space-6)">
-              ${lesson.contenido_texto || lesson.contenido || '<p class="text-muted">Contenido de la lección próximamente.</p>'}
+              ${lesson.contenido_texto || lesson.contenido || (tipo === 'lectura' ? '<p class="text-muted">Sin contenido.</p>' : '<p class="text-muted">Contenido de la lección próximamente.</p>')}
             </div>
           </div>`;
 
