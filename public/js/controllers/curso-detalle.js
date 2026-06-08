@@ -387,6 +387,7 @@ async function openAddModuloModal(cursoId, slug) {
         descripcion: data.descripcion || '',
         duracion_total_min: parseInt(data.duracion_total_min) || 0,
         es_gratuito: false,
+        orden: nextOrden,
       });
       document.querySelector('.modal-overlay').remove();
       showToast({ type: 'success', title: 'Módulo creado' });
